@@ -1,11 +1,38 @@
-{
-    "StackNamePrefix": "swarm-cf",
-    "TemplateBucket": "cf-artifacts-123456789012-eu-west-1",
-    "TemplatePrefix": "swarm-iac/templates/",
-    "VpcId": "vpc-xxxxxxxx",
-    "PublicSubnetId": "subnet-xxxxxxxx",
-    "AllowedSshCidr": "1.2.3.4/32",
-    "KeyPairName": "your-keypair",
-    "InstanceType": "t3.small",
-    "AmiId": "ami-xxxxxxxxxxxxxxxxx"
-}
+[
+    {
+        "ParameterKey": "StackNamePrefix",
+        "ParameterValue": "swarm-cf"
+    },
+    {
+        "ParameterKey": "TemplateBucket",
+        "ParameterValue": "cf-swarm-<user-id-here>-eu-west-1"
+    },
+    {
+        "ParameterKey": "TemplatePrefix",
+        "ParameterValue": "swarm-iac/templates/"
+    },
+    {
+        "ParameterKey": "VpcId",
+        "ParameterValue": "vpc-xxxxxxxx"
+    },
+    {
+        "ParameterKey": "PublicSubnetId",
+        "ParameterValue": "subnet-xxxxxxxx"
+    },
+    {
+        "ParameterKey": "AllowedSshCidr",
+        "ParameterValue": "1.2.3.4/32"
+    },
+    {
+        "ParameterKey": "KeyPairName",
+        "ParameterValue": "tinfoil-eu-west-1"
+    },
+    {
+        "ParameterKey": "InstanceType",
+        "ParameterValue": "t3.small"
+    },
+    {
+        "ParameterKey": "AmiId",
+        "ParameterValue": "ami-xxxxxxxxxxxxxxxxx"
+    }
+]
