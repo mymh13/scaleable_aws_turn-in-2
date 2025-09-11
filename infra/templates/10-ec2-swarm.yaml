@@ -1,0 +1,87 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: EC2 instances for Swarm (1 manager, 2 workers) with Docker installed
+
+Parameters:
+  StackNamePrefix:
+    Type: String
+  PublicSubnetId:
+    Type: AWS::EC2::Subnet::Id
+  SecurityGroupId:
+    Type: String
+  KeyPairName:
+    Type: AWS::EC2::KeyPair::KeyName
+  InstanceType:
+    Type: String
+  AmiId:
+    Type: AWS::EC2::Image::Id
+
+Mappings: {}
+
+Resources:
+  Manager:
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId: !Ref AmiId
+      InstanceType: !Ref InstanceType
+      KeyName: !Ref KeyPairName
+      SubnetId: !Ref PublicSubnetId
+      SecurityGroupIds: [ !Ref SecurityGroupId ]
+      Tags:
+        - Key: Name
+          Value: !Sub '${StackNamePrefix}-manager'
+      UserData:
+        Fn::Base64: !Sub |
+          #cloud-config
+          runcmd:
+            - dnf update -y
+            - dnf install -y docker
+            - systemctl enable --now docker
+            - usermod -aG docker ec2-user
+
+  Worker1:
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId: !Ref AmiId
+      InstanceType: !Ref InstanceType
+      KeyName: !Ref KeyPairName
+      SubnetId: !Ref PublicSubnetId
+      SecurityGroupIds: [ !Ref SecurityGroupId ]
+      Tags:
+        - Key: Name
+          Value: !Sub '${StackNamePrefix}-worker-1'
+      UserData:
+        Fn::Base64: !Sub |
+          #cloud-config
+          runcmd:
+            - dnf update -y
+            - dnf install -y docker
+            - systemctl enable --now docker
+            - usermod -aG docker ec2-user
+
+  Worker2:
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId: !Ref AmiId
+      InstanceType: !Ref InstanceType
+      KeyName: !Ref KeyPairName
+      SubnetId: !Ref PublicSubnetId
+      SecurityGroupIds: [ !Ref SecurityGroupId ]
+      Tags:
+        - Key: Name
+          Value: !Sub '${StackNamePrefix}-worker-2'
+      UserData:
+        Fn::Base64: !Sub |
+          #cloud-config
+          runcmd:
+            - dnf update -y
+            - dnf install -y docker
+            - systemctl enable --now docker
+            - usermod -aG docker ec2-user
+
+Outputs:
+  ManagerPublicIp:
+    Value: !GetAtt Manager.PublicIp
+  Worker1PublicIp:
+    Value: !GetAtt Worker1.PublicIp
+  Worker2PublicIp:
+    Value: !GetAtt Worker2.PublicIp

@@ -1,0 +1,66 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Root stack for Docker Swarm (manager + 2 workers) using nested stacks
+
+Parameters:
+  StackNamePrefix:
+    Type: String
+    Default: swarm-cf
+    Description: Prefix used for naming
+  TemplateBucket:
+    Type: String
+    Description: S3 bucket that stores child templates (e.g. cf-artifacts-<acct>-<region>)
+  TemplatePrefix:
+    Type: String
+    Default: swarm-iac/templates/
+    Description: Key prefix inside the S3 bucket
+  VpcId:
+    Type: AWS::EC2::VPC::Id
+    Description: VPC to deploy into (choose your default VPC)
+  PublicSubnetId:
+    Type: AWS::EC2::Subnet::Id
+    Description: Public subnet for all three instances (default subnet is fine)
+  AllowedSshCidr:
+    Type: String
+    Description: Your IP in CIDR for SSH (e.g. 1.2.3.4/32)
+  KeyPairName:
+    Type: AWS::EC2::KeyPair::KeyName
+    Description: Existing EC2 key pair name
+  InstanceType:
+    Type: String
+    Default: t3.small
+  AmiId:
+    Type: AWS::EC2::Image::Id
+    Description: Amazon Linux 2023 AMI in this region
+
+Resources:
+  SwarmSecurityGroupStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Sub 'https://s3.${AWS::Region}.amazonaws.com/${TemplateBucket}/${TemplatePrefix}00-sg-swarm.yaml'
+      Parameters:
+        StackNamePrefix: !Ref StackNamePrefix
+        VpcId: !Ref VpcId
+        AllowedSshCidr: !Ref AllowedSshCidr
+
+  SwarmEc2Stack:
+    Type: AWS::CloudFormation::Stack
+    DependsOn: SwarmSecurityGroupStack
+    Properties:
+      TemplateURL: !Sub 'https://s3.${AWS::Region}.amazonaws.com/${TemplateBucket}/${TemplatePrefix}10-ec2-swarm.yaml'
+      Parameters:
+        StackNamePrefix: !Ref StackNamePrefix
+        PublicSubnetId: !Ref PublicSubnetId
+        SecurityGroupId: !GetAtt SwarmSecurityGroupStack.Outputs.SwarmSecurityGroupId
+        KeyPairName: !Ref KeyPairName
+        InstanceType: !Ref InstanceType
+        AmiId: !Ref AmiId
+
+Outputs:
+  ManagerPublicIp:
+    Value: !GetAtt SwarmEc2Stack.Outputs.ManagerPublicIp
+  Worker1PublicIp:
+    Value: !GetAtt SwarmEc2Stack.Outputs.Worker1PublicIp
+  Worker2PublicIp:
+    Value: !GetAtt SwarmEc2Stack.Outputs.Worker2PublicIp
+  SecurityGroupId:
+    Value: !GetAtt SwarmSecurityGroupStack.Outputs.SwarmSecurityGroupId

@@ -1,0 +1,11 @@
+{
+    "StackNamePrefix": "swarm-cf",
+    "TemplateBucket": "cf-artifacts-123456789012-eu-west-1",
+    "TemplatePrefix": "swarm-iac/templates/",
+    "VpcId": "vpc-xxxxxxxx",
+    "PublicSubnetId": "subnet-xxxxxxxx",
+    "AllowedSshCidr": "1.2.3.4/32",
+    "KeyPairName": "your-keypair",
+    "InstanceType": "t3.small",
+    "AmiId": "ami-xxxxxxxxxxxxxxxxx"
+}

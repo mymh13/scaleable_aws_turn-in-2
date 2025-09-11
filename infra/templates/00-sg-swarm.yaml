@@ -1,0 +1,60 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Security Group for Swarm (SSH, HTTP, Viz, Swarm ports)
+
+Parameters:
+  StackNamePrefix:
+    Type: String
+  VpcId:
+    Type: AWS::EC2::VPC::Id
+  AllowedSshCidr:
+    Type: String
+
+Resources:
+  SwarmSG:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: !Sub '${StackNamePrefix}-swarm-sg'
+      VpcId: !Ref VpcId
+      SecurityGroupIngress:
+        # SSH (locked to your IP)
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: !Ref AllowedSshCidr
+        # HTTP 80 (world)
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+        # Visualizer 8080 (world)
+        - IpProtocol: tcp
+          FromPort: 8080
+          ToPort: 8080
+          CidrIp: 0.0.0.0/0
+        # Swarm mgmt 2377 (self-reference)
+        - IpProtocol: tcp
+          FromPort: 2377
+          ToPort: 2377
+          SourceSecurityGroupId: !Ref SwarmSG
+        # Gossip TCP 7946 (self-reference)
+        - IpProtocol: tcp
+          FromPort: 7946
+          ToPort: 7946
+          SourceSecurityGroupId: !Ref SwarmSG
+        # Gossip UDP 7946 (self-reference)
+        - IpProtocol: udp
+          FromPort: 7946
+          ToPort: 7946
+          SourceSecurityGroupId: !Ref SwarmSG
+        # Overlay UDP 4789 (self-reference)
+        - IpProtocol: udp
+          FromPort: 4789
+          ToPort: 4789
+          SourceSecurityGroupId: !Ref SwarmSG
+      Tags:
+        - Key: Name
+          Value: !Sub '${StackNamePrefix}-swarm-sg'
+
+Outputs:
+  SwarmSecurityGroupId:
+    Value: !Ref SwarmSG

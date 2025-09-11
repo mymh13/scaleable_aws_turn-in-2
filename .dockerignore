@@ -1,7 +1,0 @@
-# Infra / Terraform
-infra/
-**/.terraform/
-**/.terraform.lock.hcl
-**/*.tfstate
-**/*.tfstate.*
-**/*.tfvars
