@@ -42,9 +42,16 @@ Resources:
         VpcId: !Ref VpcId
         AllowedSshCidr: !Ref AllowedSshCidr
 
+  IamEc2RoleStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Sub 'https://s3.${AWS::Region}.amazonaws.com/${TemplateBucket}/${TemplatePrefix}20-iam-ec2-role.yaml'
+      Parameters:
+        StackNamePrefix: !Ref StackNamePrefix
+
   SwarmEc2Stack:
     Type: AWS::CloudFormation::Stack
-    DependsOn: SwarmSecurityGroupStack
+    DependsOn: [ SwarmSecurityGroupStack, IamEc2RoleStack ]
     Properties:
       TemplateURL: !Sub 'https://s3.${AWS::Region}.amazonaws.com/${TemplateBucket}/${TemplatePrefix}10-ec2-swarm.yaml'
       Parameters:
@@ -54,6 +61,7 @@ Resources:
         KeyPairName: !Ref KeyPairName
         InstanceType: !Ref InstanceType
         AmiId: !Ref AmiId
+        InstanceProfileName: !GetAtt IamEc2RoleStack.Outputs.InstanceProfileName
 
 Outputs:
   ManagerPublicIp:

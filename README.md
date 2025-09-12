@@ -11,10 +11,5 @@ The "howto-scalable-form.pdf" has a huge tutorial describing how to build this p
 ---
 
 ```bash
-aws cloudformation delete-stack \
-  --region "$REGION" \
-  --stack-name "$STACK"
-
-aws cloudformation wait stack-delete-complete \
-  --region "$REGION" --stack-name "$STACK"
+aws cloudformation validate-template --template-body file://infra/templates/root.yaml
 ```
