@@ -1,0 +1,33 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: DynamoDB table (On-Demand) for form submissions
+
+Parameters:
+  StackNamePrefix:
+    Type: String
+  TableName:
+    Type: String
+    Default: swarmcf-Submissions
+
+Resources:
+  SubmissionsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Ref TableName
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: pk
+          AttributeType: S
+        - AttributeName: sk
+          AttributeType: S
+      KeySchema:
+        - AttributeName: pk
+          KeyType: HASH
+        - AttributeName: sk
+          KeyType: RANGE
+      Tags:
+        - Key: Name
+          Value: !Sub '${StackNamePrefix}-submissions'
+
+Outputs:
+  TableName:
+    Value: !Ref SubmissionsTable

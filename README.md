@@ -1,4 +1,4 @@
-This is just a brief study project to try to combine Docker Swarm with a super basic .NET MVC application
+This is just a study project to try to combine Docker Swarm with a simple .NET MVC application
   
 The goal is not to build a fullscale application, or even set things up properly, the aim for this is simply to explore and try to get a grasp of the mechanics within the systems.  
 

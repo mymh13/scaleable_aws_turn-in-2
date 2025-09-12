@@ -31,6 +31,9 @@ Parameters:
   AmiId:
     Type: AWS::EC2::Image::Id
     Description: Amazon Linux 2023 AMI in this region
+  TableName:
+    Type: String
+    Default: swarmcf-Submissions
 
 Resources:
   SwarmSecurityGroupStack:
@@ -48,6 +51,14 @@ Resources:
       TemplateURL: !Sub 'https://s3.${AWS::Region}.amazonaws.com/${TemplateBucket}/${TemplatePrefix}20-iam-ec2-role.yaml'
       Parameters:
         StackNamePrefix: !Ref StackNamePrefix
+
+  DynamoDbStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Sub 'https://s3.${AWS::Region}.amazonaws.com/${TemplateBucket}/${TemplatePrefix}30-dynamodb.yaml'
+      Parameters:
+        StackNamePrefix: !Ref StackNamePrefix
+        TableName: !Ref TableName
 
   SwarmEc2Stack:
     Type: AWS::CloudFormation::Stack
@@ -72,3 +83,5 @@ Outputs:
     Value: !GetAtt SwarmEc2Stack.Outputs.Worker2PublicIp
   SecurityGroupId:
     Value: !GetAtt SwarmSecurityGroupStack.Outputs.SwarmSecurityGroupId
+  DynamoTableName:
+    Value: !GetAtt DynamoDbStack.Outputs.TableName

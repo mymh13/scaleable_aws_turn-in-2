@@ -1,5 +1,5 @@
 AWSTemplateFormatVersion: '2010-09-09'
-Description: EC2 Instance Role + Instance Profile (no permissions yet)
+Description: EC2 Instance Role + Instance Profile
 
 Parameters:
   StackNamePrefix:
