@@ -4,6 +4,8 @@ Description: EC2 Instance Role + Instance Profile
 Parameters:
   StackNamePrefix:
     Type: String
+  TableName:
+    Type: String
 
 Resources:
   AppEc2Role:
@@ -16,6 +18,23 @@ Resources:
           - Effect: Allow
             Principal: { Service: ec2.amazonaws.com }
             Action: sts:AssumeRole
+      Policies:
+        - PolicyName: !Sub '${StackNamePrefix}-dynamodb-access'
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - dynamodb:DescribeTable
+                  - dynamodb:PutItem
+                  - dynamodb:GetItem
+                  - dynamodb:UpdateItem
+                  - dynamodb:Query
+                  - dynamodb:Scan
+                  - dynamodb:DeleteItem   # Optional; enable only if you want deletes
+                Resource:
+                  - !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${TableName}'
+                  - !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${TableName}/index/*'
 
   AppEc2InstanceProfile:
     Type: AWS::IAM::InstanceProfile

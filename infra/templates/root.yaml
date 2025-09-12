@@ -51,6 +51,7 @@ Resources:
       TemplateURL: !Sub 'https://s3.${AWS::Region}.amazonaws.com/${TemplateBucket}/${TemplatePrefix}20-iam-ec2-role.yaml'
       Parameters:
         StackNamePrefix: !Ref StackNamePrefix
+        TableName: !Ref TableName
 
   DynamoDbStack:
     Type: AWS::CloudFormation::Stack
