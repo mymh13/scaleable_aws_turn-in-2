@@ -11,11 +11,10 @@ The "howto-scalable-form.pdf" has a huge tutorial describing how to build this p
 ---
 
 ```bash
-/infra
-  /templates
-    root.yaml                  # orchestrates children
-    00-sg-swarm.yaml           # Security Group for swarm
-    10-ec2-swarm.yaml          # EC2 Manager + 2 Workers (Docker installed)
-  /parameters
-    dev.json                   # example parameter set for root.yaml
+aws cloudformation delete-stack \
+  --region "$REGION" \
+  --stack-name "$STACK"
+
+aws cloudformation wait stack-delete-complete \
+  --region "$REGION" --stack-name "$STACK"
 ```

@@ -15,6 +15,7 @@ Resources:
     Properties:
       GroupDescription: !Sub '${StackNamePrefix}-swarm-sg'
       VpcId: !Ref VpcId
+      # Only non-self-referencing rules here
       SecurityGroupIngress:
         # SSH (locked to your IP)
         - IpProtocol: tcp
@@ -31,29 +32,50 @@ Resources:
           FromPort: 8080
           ToPort: 8080
           CidrIp: 0.0.0.0/0
-        # Swarm mgmt 2377 (self-reference)
-        - IpProtocol: tcp
-          FromPort: 2377
-          ToPort: 2377
-          SourceSecurityGroupId: !Ref SwarmSG
-        # Gossip TCP 7946 (self-reference)
-        - IpProtocol: tcp
-          FromPort: 7946
-          ToPort: 7946
-          SourceSecurityGroupId: !Ref SwarmSG
-        # Gossip UDP 7946 (self-reference)
-        - IpProtocol: udp
-          FromPort: 7946
-          ToPort: 7946
-          SourceSecurityGroupId: !Ref SwarmSG
-        # Overlay UDP 4789 (self-reference)
-        - IpProtocol: udp
-          FromPort: 4789
-          ToPort: 4789
-          SourceSecurityGroupId: !Ref SwarmSG
+      # Egress is outward traffic
+      SecurityGroupEgress:
+        - IpProtocol: -1
+          CidrIp: 0.0.0.0/0
       Tags:
         - Key: Name
           Value: !Sub '${StackNamePrefix}-swarm-sg'
+
+  # Self-referencing rules as separate resources (avoids circular dependency)
+  IngressSwarmMgmt2377:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      GroupId: !Ref SwarmSG
+      IpProtocol: tcp
+      FromPort: 2377
+      ToPort: 2377
+      SourceSecurityGroupId: !Ref SwarmSG
+
+  IngressGossipTCP7946:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      GroupId: !Ref SwarmSG
+      IpProtocol: tcp
+      FromPort: 7946
+      ToPort: 7946
+      SourceSecurityGroupId: !Ref SwarmSG
+
+  IngressGossipUDP7946:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      GroupId: !Ref SwarmSG
+      IpProtocol: udp
+      FromPort: 7946
+      ToPort: 7946
+      SourceSecurityGroupId: !Ref SwarmSG
+
+  IngressOverlayUDP4789:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      GroupId: !Ref SwarmSG
+      IpProtocol: udp
+      FromPort: 4789
+      ToPort: 4789
+      SourceSecurityGroupId: !Ref SwarmSG
 
 Outputs:
   SwarmSecurityGroupId:

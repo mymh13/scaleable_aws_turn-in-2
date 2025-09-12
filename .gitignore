@@ -15,6 +15,7 @@
 
 # Nested Stacks and CloudFormation-specific files
 /infra/parameters/dev.json
+/infra/parameters/dev.params.json
 
 # User-specific files (MonoDevelop/Xamarin Studio)
 *.userprefs
