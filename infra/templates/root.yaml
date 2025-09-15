@@ -52,6 +52,8 @@ Resources:
       Parameters:
         StackNamePrefix: !Ref StackNamePrefix
         TableName: !Ref TableName
+        TemplateBucket:  !Ref TemplateBucket
+        TemplatePrefix:  !Ref TemplatePrefix
 
   DynamoDbStack:
     Type: AWS::CloudFormation::Stack
@@ -74,6 +76,8 @@ Resources:
         InstanceType: !Ref InstanceType
         AmiId: !Ref AmiId
         InstanceProfileName: !GetAtt IamEc2RoleStack.Outputs.InstanceProfileName
+        TemplateBucket:  !Ref TemplateBucket
+        TemplatePrefix:  !Ref TemplatePrefix
 
 Outputs:
   ManagerPublicIp:

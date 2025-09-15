@@ -6,6 +6,10 @@ Parameters:
     Type: String
   TableName:
     Type: String
+  TemplateBucket:
+    Type: String
+  TemplatePrefix:
+    Type: String
 
 Resources:
   AppEc2Role:
@@ -35,6 +39,28 @@ Resources:
                 Resource:
                   - !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${TableName}'
                   - !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${TableName}/index/*'
+        - PolicyName: !Sub '${StackNamePrefix}-swarm-ssm-s3'
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              # Read/write the two parameters we use as rendezvous
+              - Effect: Allow
+                Action:
+                  - ssm:GetParameter
+                  - ssm:PutParameter
+                Resource:
+                  - !Sub 'arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/swarm/worker-token'
+                  - !Sub 'arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/swarm/manager-ip'
+              # Fetch compose file from your artifacts bucket
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                Resource:
+                  - !Sub 'arn:aws:s3:::${TemplateBucket}/${TemplatePrefix}artifacts/docker-stack.yml'
+              # ListBucket is needed for some S3 clients (optional, safe to include)
+              - Effect: Allow
+                Action: s3:ListBucket
+                Resource: !Sub 'arn:aws:s3:::${TemplateBucket}'
 
   AppEc2InstanceProfile:
     Type: AWS::IAM::InstanceProfile

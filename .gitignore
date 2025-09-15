@@ -17,6 +17,9 @@
 /infra/parameters/dev.json
 /infra/parameters/dev.params.json
 
+# allow docker-stack file
+!/infra/artifacts/docker-stack.yml
+
 # User-specific files (MonoDevelop/Xamarin Studio)
 *.userprefs
 
