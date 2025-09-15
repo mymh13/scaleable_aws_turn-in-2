@@ -1,0 +1,32 @@
+version: "3.8"
+services:
+  web:
+    image: nginx:stable-alpine
+    deploy:
+      replicas: 3
+      placement:
+        preferences:
+          - spread: node.id   # prefer even distribution across nodes
+      restart_policy:
+        condition: on-failure
+      update_config:
+        parallelism: 1
+        delay: 5s
+    ports:
+      - "80:80"
+    networks: [webnet]
+
+  viz:
+    image: dockersamples/visualizer:stable
+    deploy:
+      placement:
+        constraints: [node.role == manager]
+    ports:
+      - "8080:8080"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    networks: [webnet]
+
+networks:
+  webnet:
+    driver: overlay
