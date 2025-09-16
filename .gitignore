@@ -17,9 +17,6 @@
 /infra/parameters/dev.json
 /infra/parameters/dev.params.json
 
-# allow docker-stack file
-!/infra/artifacts/docker-stack.yml
-
 # User-specific files (MonoDevelop/Xamarin Studio)
 *.userprefs
 
@@ -71,6 +68,11 @@ BenchmarkDotNet.Artifacts/
 project.lock.json
 project.fragment.lock.json
 artifacts/
+
+# Keep our CF compose artifact in version control
+!/infra/
+!/infra/artifacts/
+!/infra/artifacts/docker-stack.yml
 
 # Tye
 .tye/

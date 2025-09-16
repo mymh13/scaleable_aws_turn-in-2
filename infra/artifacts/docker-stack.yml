@@ -5,8 +5,9 @@ services:
     deploy:
       replicas: 3
       placement:
+        max_replicas_per_node: 1  # ensures 1 node before doubling it
         preferences:
-          - spread: node.id   # prefer even distribution across nodes
+          - spread: node.id       # prefer even distribution across nodes
       restart_policy:
         condition: on-failure
       update_config:

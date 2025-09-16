@@ -50,7 +50,7 @@ Resources:
             - 'echo "export AWS_REGION=${AWS::Region}; export AWS_DEFAULT_REGION=${AWS::Region}" | tee -a /etc/profile.d/awsregion.sh'
             - |
               bash -lc '
-                # wait briefly for Docker
+                # Wait for Docker to be ready
                 for i in {1..10}; do docker info >/dev/null 2>&1 && break || sleep 2; done
 
                 # IMDSv2 token + private IP
@@ -59,12 +59,31 @@ Resources:
                 MAN_IP=$(curl -s -H "X-aws-ec2-metadata-token: $TOKEN" \
                   http://169.254.169.254/latest/meta-data/local-ipv4)
 
-                # init + publish + deploy
+                # Init the Swarm
                 docker swarm init --advertise-addr "$MAN_IP"
+                
+                # Publish join info
                 TOK=$(docker swarm join-token -q worker)
                 aws ssm put-parameter --name /swarm/manager-ip  --type String --overwrite --value "$MAN_IP" --region ${AWS::Region}
                 aws ssm put-parameter --name /swarm/worker-token --type String --overwrite --value "$TOK"     --region ${AWS::Region}
+
+                # Wait for workers to join (expecting 2; adjust if your size changes)
+                until [ "$(docker node ls --format "{{.ManagerStatus}} {{.Status}} {{.Availability}}" \
+                            | awk '\''
+                              $1=="" && $2=="Ready" && $3=="Active"{c++}
+                              END{print c+0}'\'')" -ge 2 ]; do
+                  sleep 5
+                done
+
+                # Pull compose and FIRST deploy
                 aws s3 cp s3://${TemplateBucket}/${TemplatePrefix}artifacts/docker-stack.yml /tmp/docker-stack.yml --region ${AWS::Region}
+                docker stack deploy -c /tmp/docker-stack.yml myappname
+
+                # Small buffer to let tasks start
+                sleep 10
+
+                # **Option A automated**: clean recreate of the app service (brief blip)
+                docker service rm myappname_web || true
                 docker stack deploy -c /tmp/docker-stack.yml myappname
               '
 
