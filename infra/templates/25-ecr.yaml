@@ -1,0 +1,58 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: ECR repository for the Swarm .NET app
+
+Parameters:
+  RepositoryName:
+    Type: String
+    Description: ECR repo name (no slash)
+    Default: swarm-dotnet-app
+  ImageTagMutability:
+    Type: String
+    AllowedValues: [MUTABLE, IMMUTABLE]
+    Default: MUTABLE
+  ScanOnPush:
+    Type: String
+    AllowedValues: [true, false]
+    Default: true
+  KeepUntagged:
+    Type: Number
+    Default: 10
+    Description: Keep last N untagged images (lifecycle)
+
+Conditions:
+  EnableScan: !Equals [!Ref ScanOnPush, "true"]
+
+Resources:
+  AppRepository:
+    Type: AWS::ECR::Repository
+    Properties:
+      RepositoryName: !Ref RepositoryName
+      ImageTagMutability: !Ref ImageTagMutability
+      ImageScanningConfiguration:
+        ScanOnPush: !If [EnableScan, true, false]
+      EncryptionConfiguration:
+        EncryptionType: AES256
+      LifecyclePolicy:
+        LifecyclePolicyText: !Sub |
+          {
+            "rules": [
+              {
+                "rulePriority": 1,
+                "description": "Expire untagged images beyond ${KeepUntagged}",
+                "selection": {
+                  "tagStatus": "untagged",
+                  "countType": "imageCountMoreThan",
+                  "countNumber": ${KeepUntagged}
+                },
+                "action": { "type": "expire" }
+              }
+            ]
+          }
+
+Outputs:
+  RepositoryUri:
+    Value: !GetAtt AppRepository.RepositoryUri
+    Export:
+      Name: !Sub "${AWS::StackName}-RepositoryUri"
+  RepositoryArn:
+    Value: !GetAtt AppRepository.Arn

@@ -48,20 +48,18 @@ Resources:
             - systemctl enable --now docker
             - usermod -aG docker ec2-user
             - 'echo "export AWS_REGION=${AWS::Region}; export AWS_DEFAULT_REGION=${AWS::Region}" | tee -a /etc/profile.d/awsregion.sh'
-            - |
+            - !Sub |
               bash -lc '
                 # Wait for Docker to be ready
                 for i in {1..10}; do docker info >/dev/null 2>&1 && break || sleep 2; done
 
                 # IMDSv2 token + private IP
-                TOKEN=$(curl -sX PUT "http://169.254.169.254/latest/api/token" \
-                  -H "X-aws-ec2-metadata-token-ttl-seconds: 21600")
-                MAN_IP=$(curl -s -H "X-aws-ec2-metadata-token: $TOKEN" \
-                  http://169.254.169.254/latest/meta-data/local-ipv4)
+                TOKEN=$(curl -sX PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 21600")
+                MAN_IP=$(curl -s -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/meta-data/local-ipv4)
 
                 # Init the Swarm
                 docker swarm init --advertise-addr "$MAN_IP"
-                
+
                 # Publish join info
                 TOK=$(docker swarm join-token -q worker)
                 aws ssm put-parameter --name /swarm/manager-ip  --type String --overwrite --value "$MAN_IP" --region ${AWS::Region}
@@ -69,22 +67,28 @@ Resources:
 
                 # Wait for workers to join (expecting 2; adjust if your size changes)
                 until [ "$(docker node ls --format "{{.ManagerStatus}} {{.Status}} {{.Availability}}" \
-                            | awk '\''
-                              $1=="" && $2=="Ready" && $3=="Active"{c++}
-                              END{print c+0}'\'')" -ge 2 ]; do
+                            | awk '$1=="" && $2=="Ready" && $3=="Active"{c++} END{print c+0}')" -ge 2 ]; do
                   sleep 5
                 done
 
-                # Pull compose and FIRST deploy
+                # Pull generic compose
                 aws s3 cp s3://${TemplateBucket}/${TemplatePrefix}artifacts/docker-stack.yml /tmp/docker-stack.yml --region ${AWS::Region}
-                docker stack deploy -c /tmp/docker-stack.yml myappname
 
-                # Small buffer to let tasks start
+                # Build ECR image URI from pseudo-params and substitute placeholder
+                IMAGE="${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/swarm-dotnet-app:dev"
+                sed -i "s|__ECR_IMAGE__|${IMAGE}|g" /tmp/docker-stack.yml
+
+                # Login Docker to ECR (authorized via instance role)
+                aws ecr get-login-password --region ${AWS::Region} \
+                | docker login --username AWS --password-stdin "${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com"
+
+                # First deploy (with registry creds passed to the swarm)
+                docker stack deploy -c /tmp/docker-stack.yml --with-registry-auth myappname
+
+                # Optional: small buffer then clean recreate to encourage even placement
                 sleep 10
-
-                # **Option A automated**: clean recreate of the app service (brief blip)
                 docker service rm myappname_web || true
-                docker stack deploy -c /tmp/docker-stack.yml myappname
+                docker stack deploy -c /tmp/docker-stack.yml --with-registry-auth myappname
               '
 
   Worker1:

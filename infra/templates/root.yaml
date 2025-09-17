@@ -34,6 +34,8 @@ Parameters:
   TableName:
     Type: String
     Default: swarmcf-Submissions
+  RepositoryName:
+    Type: String
 
 Resources:
   SwarmSecurityGroupStack:
@@ -78,6 +80,16 @@ Resources:
         InstanceProfileName: !GetAtt IamEc2RoleStack.Outputs.InstanceProfileName
         TemplateBucket:  !Ref TemplateBucket
         TemplatePrefix:  !Ref TemplatePrefix
+
+  EcrStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Sub "https://${TemplateBucket}.s3.${AWS::Region}.amazonaws.com/${TemplatePrefix}25-ecr.yaml"
+      Parameters:
+        RepositoryName: !Ref RepositoryName
+        ImageTagMutability: MUTABLE
+        ScanOnPush: true
+        KeepUntagged: 10
 
 Outputs:
   ManagerPublicIp:
