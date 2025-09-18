@@ -61,5 +61,9 @@ aws cloudformation wait stack-delete-complete \
 This below is just a bash-section I keep to copy/paste code into the Word document that builds the .pdf. It is just a graphical helper. :)
 
 ```bash
-aws s3 cp infra/artifacts/docker-stack.yml "s3://$BUCKET/${PREFIX}artifacts/docker-stack.yml" --region "$REGION"
+# validate
+aws cloudformation validate-template --template-body file://infra/templates/20-iam-ec2-role.yaml
+
+# upload
+aws s3 cp infra/templates/20-iam-ec2-role.yaml  "s3://${BUCKET}/${PREFIX}20-iam-ec2-role.yaml"
 ```

@@ -61,6 +61,18 @@ Resources:
               - Effect: Allow
                 Action: s3:ListBucket
                 Resource: !Sub 'arn:aws:s3:::${TemplateBucket}'
+              # ECR: allow fetching a registry auth token (required for login)
+              - Effect: Allow
+                Action:
+                  - ecr:GetAuthorizationToken
+                Resource: "*"
+              # ECR: allow pulling images from this repo
+              - Effect: Allow
+                Action:
+                  - ecr:BatchCheckLayerAvailability
+                  - ecr:GetDownloadUrlForLayer
+                  - ecr:BatchGetImage
+                Resource: !Sub 'arn:aws:ecr:${AWS::Region}:${AWS::AccountId}:repository/swarm-dotnet-app'
 
   AppEc2InstanceProfile:
     Type: AWS::IAM::InstanceProfile

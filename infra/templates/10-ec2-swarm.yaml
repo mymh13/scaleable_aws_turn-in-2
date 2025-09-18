@@ -44,48 +44,54 @@ Resources:
           #cloud-config
           runcmd:
             - dnf -y update
-            - dnf -y install docker awscli
-            - systemctl enable --now docker
-            - usermod -aG docker ec2-user
-            - 'echo "export AWS_REGION=${AWS::Region}; export AWS_DEFAULT_REGION=${AWS::Region}" | tee -a /etc/profile.d/awsregion.sh'
+            - dnf -y install awscli
+
+            # 1) Ensure Docker is installed and running (robust for AL2023 variants)
+            - |
+              bash -lc '
+                if ! command -v docker >/dev/null 2>&1; then
+                  dnf -y install docker || dnf -y install moby-engine docker-cli
+                fi
+                systemctl enable --now docker
+                usermod -aG docker ec2-user || true
+                for i in {1..10}; do docker info >/dev/null 2>&1 && break || sleep 2; done
+              '
+
+            # 2) Init swarm, publish tokens, substitute ECR image, ECR login, deploy
             - !Sub |
               bash -lc '
-                # Wait for Docker to be ready
-                for i in {1..10}; do docker info >/dev/null 2>&1 && break || sleep 2; done
+                echo "export AWS_REGION=${AWS::Region}; export AWS_DEFAULT_REGION=${AWS::Region}" | tee -a /etc/profile.d/awsregion.sh
 
-                # IMDSv2 token + private IP
+                # IMDSv2 private IP
                 TOKEN=$(curl -sX PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 21600")
                 MAN_IP=$(curl -s -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/meta-data/local-ipv4)
 
-                # Init the Swarm
+                # Init + publish join info
                 docker swarm init --advertise-addr "$MAN_IP"
-
-                # Publish join info
                 TOK=$(docker swarm join-token -q worker)
                 aws ssm put-parameter --name /swarm/manager-ip  --type String --overwrite --value "$MAN_IP" --region ${AWS::Region}
                 aws ssm put-parameter --name /swarm/worker-token --type String --overwrite --value "$TOK"     --region ${AWS::Region}
 
-                # Wait for workers to join (expecting 2; adjust if your size changes)
-                until [ "$(docker node ls --format "{{.ManagerStatus}} {{.Status}} {{.Availability}}" \
-                            | awk '$1=="" && $2=="Ready" && $3=="Active"{c++} END{print c+0}')" -ge 2 ]; do
-                  sleep 5
+                # Optional gate: wait for two Ready/Active workers
+                for i in {1..60}; do
+                  c=$(docker node ls --format "{{.ManagerStatus}} {{.Status}} {{.Availability}}" | awk '\''$1=="" && $2=="Ready" && $3=="Active"{c++} END{print c+0}'\'')
+                  [ "$c" -ge 2 ] && break || sleep 5
                 done
 
                 # Pull generic compose
                 aws s3 cp s3://${TemplateBucket}/${TemplatePrefix}artifacts/docker-stack.yml /tmp/docker-stack.yml --region ${AWS::Region}
 
-                # Build ECR image URI from pseudo-params and substitute placeholder
+                # substitute placeholder with real ECR image
                 IMAGE="${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/swarm-dotnet-app:dev"
-                sed -i "s|__ECR_IMAGE__|${IMAGE}|g" /tmp/docker-stack.yml
+                sed -i "s|__ECR_IMAGE__|$IMAGE|g" /tmp/docker-stack.yml
 
-                # Login Docker to ECR (authorized via instance role)
+                # login to ECR via instance role, then deploy with creds shared to workers
                 aws ecr get-login-password --region ${AWS::Region} \
-                | docker login --username AWS --password-stdin "${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com"
+                  | docker login --username AWS --password-stdin "${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com"
 
-                # First deploy (with registry creds passed to the swarm)
                 docker stack deploy -c /tmp/docker-stack.yml --with-registry-auth myappname
 
-                # Optional: small buffer then clean recreate to encourage even placement
+                # Optional nudge for even spread (passes creds)
                 sleep 10
                 docker service rm myappname_web || true
                 docker stack deploy -c /tmp/docker-stack.yml --with-registry-auth myappname
@@ -111,24 +117,33 @@ Resources:
         Fn::Base64: !Sub |
           #cloud-config
           runcmd:
-            - dnf -y update
-            - dnf -y install docker awscli
-            - systemctl enable --now docker
-            - usermod -aG docker ec2-user
-            - 'echo "export AWS_REGION=${AWS::Region}; export AWS_DEFAULT_REGION=${AWS::Region}" | tee -a /etc/profile.d/awsregion.sh'
-            - |
-              bash -lc '
-                MIP=$(aws ssm get-parameter --name /swarm/manager-ip  --query Parameter.Value --output text --region ${AWS::Region})
-                TOK=$(aws ssm get-parameter --name /swarm/worker-token --query Parameter.Value --output text --region ${AWS::Region})
-                # Wait until worker-token and manager-ip values exist
-                for i in {1..60}; do
-                  MIP=$(aws ssm get-parameter --name /swarm/manager-ip  --query Parameter.Value --output text --region ${AWS::Region} 2>/dev/null) || true
-                  TOK=$(aws ssm get-parameter --name /swarm/worker-token --query Parameter.Value --output text --region ${AWS::Region} 2>/dev/null) || true
-                  if [ -n "$MIP" ] && [ -n "$TOK" ]; then break; fi
-                  sleep 2
-                done
-                docker swarm join --token "$TOK" "$MIP:2377"
-              '
+          - dnf -y update
+          # ensure awscli present (needed to read SSM params)
+          - dnf -y install awscli
+
+          # 1) Make sure Docker is installed and running
+          - |
+            bash -lc '
+              if ! command -v docker >/dev/null 2>&1; then
+                dnf -y install docker || dnf -y install moby-engine docker-cli   # CHANGED
+              fi
+              systemctl enable --now docker
+              usermod -aG docker ec2-user || true
+              for i in {1..10}; do docker info >/dev/null 2>&1 && break || sleep 2; done   # CHANGED: wait for daemon
+            '
+
+          # 2) Join the swarm (wait for SSM rendezvous values)
+          - |
+            bash -lc '
+              echo "export AWS_REGION=${AWS::Region}; export AWS_DEFAULT_REGION=${AWS::Region}" | tee -a /etc/profile.d/awsregion.sh
+              for i in {1..60}; do
+                MIP=$(aws ssm get-parameter --name /swarm/manager-ip  --query Parameter.Value --output text --region ${AWS::Region} 2>/dev/null) || true
+                TOK=$(aws ssm get-parameter --name /swarm/worker-token --query Parameter.Value --output text --region ${AWS::Region} 2>/dev/null) || true
+                [ -n "$MIP" ] && [ -n "$TOK" ] && break
+                sleep 2
+              done
+              docker swarm join --token "$TOK" "$MIP:2377"
+            '
 
   Worker2:
     Type: AWS::EC2::Instance
