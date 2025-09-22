@@ -27,6 +27,7 @@ Resources:
     Type: AWS::ECR::Repository
     Properties:
       RepositoryName: !Ref RepositoryName
+      EmptyOnDelete: true     # <-- CFN will force-delete images on stack deletion
       ImageTagMutability: !Ref ImageTagMutability
       ImageScanningConfiguration:
         ScanOnPush: !If [EnableScan, true, false]
