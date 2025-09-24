@@ -21,6 +21,11 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Debug refs
+        run: |
+            echo "GITHUB_REF=$GITHUB_REF"
+            echo "GITHUB_REF_NAME=$GITHUB_REF_NAME"
+
       - name: Configure AWS credentials (OIDC)
         uses: aws-actions/configure-aws-credentials@v4
         with:
