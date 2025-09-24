@@ -56,10 +56,15 @@ Resources:
                   - ecr:BatchGetImage
                   - ecr:GetDownloadUrlForLayer
                 Resource: !Sub 'arn:aws:ecr:${AWS::Region}:${AWS::AccountId}:repository/${RepositoryName}'
-              - Effect: Allow # Allowing CI to send SSM RunCommand to the Manager
+              # Allow CI to send SSM RunCommand to the Manager
+              - Effect: Allow
                 Action:
                   - ssm:SendCommand
                   - ssm:GetCommandInvocation
+                Resource: "*"
+              # Allow CI to look up the Manager instance ID
+              - Effect: Allow
+                Action: ec2:DescribeInstances
                 Resource: "*"
 
 Outputs:
