@@ -36,6 +36,18 @@ Parameters:
     Default: swarmcf-Submissions
   RepositoryName:
     Type: String
+  GitHubOrg:
+    Type: String
+    Default: mymh13
+  GitHubRepo:
+    Type: String
+    Default: swarm-dotnet-test
+  GitHubRef:
+    Type: String
+    Default: refs/heads/main
+  OidcThumbprint:
+    Type: String
+    Default: 6938fd4d98bab03faadb97b34396831e3780aea1
 
 Resources:
   SwarmSecurityGroupStack:
@@ -91,6 +103,19 @@ Resources:
         ScanOnPush: true
         KeepUntagged: 10
 
+  OidcGitHubStack:
+    Type: AWS::CloudFormation::Stack
+    DependsOn: EcrStack   # optional; safe to include
+    Properties:
+      TemplateURL: !Sub 'https://s3.${AWS::Region}.amazonaws.com/${TemplateBucket}/${TemplatePrefix}26-github-oidc.yaml'
+      Parameters:
+        StackNamePrefix: !Ref StackNamePrefix
+        RepositoryName:  !Ref RepositoryName
+        GitHubOrg:       !Ref GitHubOrg
+        GitHubRepo:      !Ref GitHubRepo
+        GitHubRef:       !Ref GitHubRef
+        OidcThumbprint:  !Ref OidcThumbprint
+
 Outputs:
   ManagerPublicIp:
     Value: !GetAtt SwarmEc2Stack.Outputs.ManagerPublicIp
@@ -102,3 +127,8 @@ Outputs:
     Value: !GetAtt SwarmSecurityGroupStack.Outputs.SwarmSecurityGroupId
   DynamoTableName:
     Value: !GetAtt DynamoDbStack.Outputs.TableName
+  GitHubEcrPushRoleArn:
+    Description: ARN of the IAM Role that GitHub Actions assumes via OIDC
+    Value: !GetAtt OidcGitHubStack.Outputs.GitHubEcrPushRoleArn
+    Export:
+      Name: !Sub '${AWS::StackName}-GitHubEcrPushRoleArn'

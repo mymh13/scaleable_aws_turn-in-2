@@ -1,0 +1,61 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: OIDC role for GitHub Actions to push images to ECR
+
+Parameters:
+  StackNamePrefix: { Type: String }
+  RepositoryName:  { Type: String, Default: swarm-dotnet-app } # ECR repo
+  GitHubOrg:       { Type: String, Default: mymh13 }
+  GitHubRepo:      { Type: String, Default: swarm-dotnet-test }
+  GitHubRef:       { Type: String, Default: refs/heads/main }
+    # allow main branch (adjust if needed)
+  OidcThumbprint:  { Type: String,  Default: 6938fd4d98bab03faadb97b34396831e3780aea1 }
+    # value can be modified if you want, instead of hardcoding it in the Resources section
+
+Resources:
+  GitHubOidcProvider:
+    Type: AWS::IAM::OIDCProvider
+    Properties:
+      Url: https://token.actions.githubusercontent.com
+      ClientIdList: [ sts.amazonaws.com ]
+      ThumbprintList: [ !Ref OidcThumbprint ]     # GitHub OIDC root CA
+
+  GitHubEcrPushRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub '${StackNamePrefix}-gha-ecr-push'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Federated: !Ref GitHubOidcProvider
+            Action: sts:AssumeRoleWithWebIdentity
+            Condition:
+              StringEquals:
+                token.actions.githubusercontent.com:aud: sts.amazonaws.com
+              StringLike:
+                token.actions.githubusercontent.com:sub: !Sub 'repo:${GitHubOrg}/${GitHubRepo}:${GitHubRef}'
+      Policies:
+        - PolicyName: !Sub '${StackNamePrefix}-ecr-push'
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              # Needed to log in to registry
+              - Effect: Allow
+                Action: ecr:GetAuthorizationToken
+                Resource: '*'
+              # Push/pull to the specific repo
+              - Effect: Allow
+                Action:
+                  - ecr:BatchCheckLayerAvailability
+                  - ecr:CompleteLayerUpload
+                  - ecr:UploadLayerPart
+                  - ecr:InitiateLayerUpload
+                  - ecr:PutImage
+                  - ecr:BatchGetImage
+                  - ecr:GetDownloadUrlForLayer
+                Resource: !Sub 'arn:aws:ecr:${AWS::Region}:${AWS::AccountId}:repository/${RepositoryName}'
+
+Outputs:
+  GitHubEcrPushRoleArn:
+    Value: !GetAtt GitHubEcrPushRole.Arn
