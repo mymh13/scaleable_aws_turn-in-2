@@ -20,6 +20,10 @@ Parameters:
     Type: String
   TemplatePrefix:
     Type: String
+  RepositoryName: { Type: String, Default: swarm-dotnet-app }
+  ImageTag:       { Type: String, Default: dev }
+  WaitSeconds:    { Type: Number, Default: 300 }     # 5 minutes max
+  PollInterval:   { Type: Number, Default: 5 }       # seconds
 
 Mappings: {}
 
@@ -88,6 +92,19 @@ Resources:
                 # login to ECR via instance role, then deploy with creds shared to workers
                 aws ecr get-login-password --region ${AWS::Region} \
                   | docker login --username AWS --password-stdin "${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com"
+                
+                # WAIT for the image to exist (max ~ WaitSeconds)
+                echo "Waiting for ECR image ${RepositoryName}:${ImageTag} ..."
+                deadline=$(( $(date +%s) + ${WaitSeconds} ))
+                while [ $(date +%s) -lt $deadline ]; do
+                  if aws ecr describe-images --region ${AWS::Region} \
+                      --repository-name "${RepositoryName}" \
+                      --image-ids imageTag="${ImageTag}" >/dev/null 2>&1; then
+                    echo "Image found."
+                    break
+                  fi
+                  sleep ${PollInterval}
+                done
 
                 docker stack deploy -c /tmp/docker-stack.yml --with-registry-auth myappname
 

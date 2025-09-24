@@ -42,3 +42,21 @@ jobs:
           context: .
           push: true
           tags: ${{ steps.ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ env.IMAGE_TAG }}
+
+      - name: Find Manager instance ID
+        id: find-manager
+        run: |
+            MID=$(aws ec2 describe-instances \
+                --region "${{ secrets.AWS_REGION }}" \
+                --filters "Name=tag:Name,Values=${{ vars.STACK_NAME_PREFIX }}-manager" "Name=instance-state-name,Values=running" \
+                --query "Reservations[0].Instances[0].InstanceId" --output text)
+            echo "instance_id=$MID" >> $GITHUB_OUTPUT
+
+      - name: Trigger Swarm rolling update via SSM
+        run: |
+            aws ssm send-command \
+                --region "${{ secrets.AWS_REGION }}" \
+                --instance-ids "${{ steps.find-manager.outputs.instance_id }}" \
+                --document-name "AWS-RunShellScript" \
+                --parameters 'commands=["docker service update --force myappname_web"]' \
+                --comment "CI: refresh swarm service after new image"
