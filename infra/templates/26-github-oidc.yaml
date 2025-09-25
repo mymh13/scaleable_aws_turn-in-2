@@ -56,7 +56,11 @@ Resources:
                   - ecr:BatchGetImage
                   - ecr:GetDownloadUrlForLayer
                 Resource: !Sub 'arn:aws:ecr:${AWS::Region}:${AWS::AccountId}:repository/${RepositoryName}'
-              # Allow CI to send SSM RunCommand to the Manager
+              # Allow SSM using the document (no conditions)
+              - Effect: Allow
+                Action: ssm:SendCommand
+                Resource: !Sub arn:aws:ssm:${AWS::Region}::document/AWS-RunShellScript
+              # Allow targeting Manager Instance (tag-guarded)
               - Effect: Allow
                 Action:
                   - ssm:SendCommand
@@ -64,7 +68,7 @@ Resources:
                   - ssm:ListCommandInvocations       # (optional)
                   - ssm:ListCommands                 # (optional)
                   - ssm:DescribeInstanceInformation  # (optional, for debugging)
-                Resource: "*"
+                Resource: !Sub arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:managed-instance/*
                 # (Optional tighter guard—only allow targeting instances tagged Name=<prefix>-manager)
                 Condition:
                   StringEquals:
