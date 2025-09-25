@@ -52,11 +52,11 @@ jobs:
                 --query "Reservations[0].Instances[0].InstanceId" --output text)
             echo "instance_id=$MID" >> $GITHUB_OUTPUT
 
-      - name: Trigger Swarm rolling update via SSM
+      - name: Trigger Swarm rolling update via SSM (by tag)
         run: |
             aws ssm send-command \
-                --region "${{ secrets.AWS_REGION }}" \
-                --instance-ids "${{ steps.find-manager.outputs.instance_id }}" \
-                --document-name "AWS-RunShellScript" \
-                --parameters 'commands=["docker service update --force myappname_web"]' \
-                --comment "CI: refresh swarm service after new image"
+            --region "${{ secrets.AWS_REGION }}" \
+            --targets "Key=tag:Name,Values=${{ vars.STACK_NAME_PREFIX }}-manager" \
+            --document-name "AWS-RunShellScript" \
+            --comment "CI: refresh swarm service after new image" \
+            --parameters 'commands=["docker service update --force myappname_web"]'

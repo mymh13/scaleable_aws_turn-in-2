@@ -61,7 +61,14 @@ Resources:
                 Action:
                   - ssm:SendCommand
                   - ssm:GetCommandInvocation
+                  - ssm:ListCommandInvocations       # (optional)
+                  - ssm:ListCommands                 # (optional)
+                  - ssm:DescribeInstanceInformation  # (optional, for debugging)
                 Resource: "*"
+                # (Optional tighter guard—only allow targeting instances tagged Name=<prefix>-manager)
+                Condition:
+                  StringEquals:
+                    ssm:resourceTag/Name: !Sub '${StackNamePrefix}-manager'
               # Allow CI to look up the Manager instance ID
               - Effect: Allow
                 Action: ec2:DescribeInstances

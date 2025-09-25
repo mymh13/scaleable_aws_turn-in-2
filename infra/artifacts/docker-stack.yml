@@ -9,9 +9,14 @@ services:
     deploy:
       replicas: 3
       placement:
-        max_replicas_per_node: 1
+        # max_replicas_per_node: 1
         preferences:
-          - spread: node.id
+          # - spread: node.id
+          - spread: node.labels.role
+      update_config:
+        order: start-first
+        parallelism: 1
+        failure_action: rollback
 
   viz:
     image: dockersamples/visualizer:stable

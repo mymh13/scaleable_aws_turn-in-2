@@ -72,6 +72,9 @@ Resources:
 
                 # Init + publish join info
                 docker swarm init --advertise-addr "$MAN_IP"
+                docker node update --label-add role=manager "$(hostname)"
+                AZ=$(curl -s http://169.254.169.254/latest/meta-data/placement/availability-zone)
+                docker node update --label-add az="$AZ" "$(hostname)"
                 TOK=$(docker swarm join-token -q worker)
                 aws ssm put-parameter --name /swarm/manager-ip  --type String --overwrite --value "$MAN_IP" --region ${AWS::Region}
                 aws ssm put-parameter --name /swarm/worker-token --type String --overwrite --value "$TOK"     --region ${AWS::Region}
