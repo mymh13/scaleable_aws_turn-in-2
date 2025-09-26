@@ -61,16 +61,14 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          PREFIX="${{ vars.STACK_NAME_PREFIX }}"
-          echo "Using STACK_NAME_PREFIX='${PREFIX}'"
           MID=$(aws ec2 describe-instances \
             --region "${{ secrets.AWS_REGION }}" \
-            --filters "Name=tag:Name,Values=${PREFIX}-manager" "Name=instance-state-name,Values=running" \
-            --query "Reservations[].Instances[?State.Name=='running'].InstanceId | [0]" \
+            --filters "Name=tag:aws:cloudformation:logical-id,Values=Manager" "Name=instance-state-name,Values=running" \
+            --query "Reservations[].Instances[].InstanceId | [0]" \
             --output text)
           echo "Resolved manager InstanceId: ${MID}"
           if [[ -z "${MID}" || "${MID}" == "None" ]]; then
-            echo "ERROR: Could not resolve manager InstanceId (check repo variable STACK_NAME_PREFIX and EC2 Name tag)"; exit 1;
+            echo "ERROR: Could not resolve manager InstanceId via logical-id=Manager"; exit 1;
           fi
           echo "instance_id=${MID}" >> "${GITHUB_OUTPUT}"
 
