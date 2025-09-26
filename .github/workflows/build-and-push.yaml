@@ -47,15 +47,6 @@ jobs:
           push: true
           tags: ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:${{ env.IMAGE_TAG }}
 
-      # - name: Find Manager instance ID
-      #   id: find-manager
-      #   run: |
-      #       MID=$(aws ec2 describe-instances \
-      #           --region "${{ secrets.AWS_REGION }}" \
-      #           --filters "Name=tag:Name,Values=${{ vars.STACK_NAME_PREFIX }}-manager" "Name=instance-state-name,Values=running" \
-      #           --query "Reservations[0].Instances[0].InstanceId" --output text)
-      #       echo "instance_id=$MID" >> $GITHUB_OUTPUT
-
       - name: Find Manager instance ID
         id: find-manager
         shell: bash
@@ -84,27 +75,12 @@ jobs:
           [[ -z "${NAME}" || "${NAME}" == "None" ]] && { echo "ERROR: Manager Name tag missing"; exit 1; }
           echo "manager_name=${NAME}" >> "$GITHUB_OUTPUT"
 
-      # - name: Resolve SSM managed instance id by tag Name=manager name
-      #   id: find-ssm-mi
-      #   shell: bash
-      #   run: |
-      #     set -euo pipefail
-      #     NAME="${{ steps.find-manager-name.outputs.manager_name }}"
-      #     MI=$(aws ssm describe-instance-information \
-      #       --region "${{ secrets.AWS_REGION }}" \
-      #       --filters "Key=tag:Name,Values=${NAME}" \
-      #       --query "InstanceInformationList[0].InstanceId" \
-      #       --output text)
-      #     echo "Managed InstanceId: ${MI}"
-      #     [[ -z "${MI}" || "${MI}" == "None" ]] && { echo "ERROR: No SSM managed instance matched tag Name=${NAME}"; exit 1; }
-      #     echo "mi=${MI}" >> "$GITHUB_OUTPUT"
-
       - name: Update Swarm service to new image via SSM
         run: |
           FULL_IMAGE="${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:${{ env.IMAGE_TAG }}"
           aws ssm send-command \
             --region "${{ secrets.AWS_REGION }}" \
-            --instance-ids "${{ steps.find-manager.outputs.instance_id }}" \
+            --targets "Key=tag:Name,Values=${{ steps.find-manager-name.outputs.manager_name }}" \
             --document-name "AWS-RunShellScript" \
             --comment "CI: set image tag to new build; Swarm will pull and roll" \
             --parameters "commands=[\"docker service update --image ${FULL_IMAGE} --with-registry-auth --update-order start-first --update-parallelism 1 myappname_web\"]"
@@ -113,7 +89,7 @@ jobs:
         run: |
           aws ssm send-command \
             --region "${{ secrets.AWS_REGION }}" \
-            --instance-ids "${{ steps.find-manager.outputs.instance_id }}" \
+            --targets "Key=tag:Name,Values=${{ steps.find-manager-name.outputs.manager_name }}" \
             --document-name "AWS-RunShellScript" \
             --comment "Diag: list services, tasks, and listeners" \
             --parameters "commands=[
