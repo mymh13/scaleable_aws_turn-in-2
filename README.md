@@ -30,7 +30,7 @@ aws cloudformation create-stack \
 
 aws cloudformation wait stack-create-complete \
   --region "$REGION" --stack-name "$STACK"
-```
+```https://meet.google.com/omq-nvug-ppf
   
 Daily cycles: update the stack
   
@@ -61,9 +61,11 @@ aws cloudformation wait stack-delete-complete \
 This below is just a bash-section I keep to copy/paste code into the Word document that builds the .pdf. It is just a graphical helper. :)
 
 ```bash
-# validate
-aws cloudformation validate-template --template-body file://infra/templates/20-iam-ec2-role.yaml
-
-# upload
-aws s3 cp infra/templates/20-iam-ec2-role.yaml  "s3://${BUCKET}/${PREFIX}20-iam-ec2-role.yaml"
+aws cloudformation describe-stacks \
+  --region eu-west-1 \
+  --stack-name swarm-cf-root \
+  --query "Stacks[0].Outputs[?OutputKey=='GitHubEcrPushRoleArn'].OutputValue" \
+  --output text
 ```
+  
+Just adding this line to have an update to test the workflow : redeploy
