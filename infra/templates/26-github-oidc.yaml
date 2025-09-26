@@ -77,6 +77,11 @@ Resources:
               - Effect: Allow
                 Action: ec2:DescribeInstances
                 Resource: "*"
+              # allow SSM inventory lookup (needed to map EC2 -> mi-*)
+              - Effect: Allow
+                Action:
+                  - ssm:DescribeInstanceInformation
+                Resource: "*"   # required; this API doesn't support resource-level ARNs
 
 Outputs:
   GitHubEcrPushRoleArn:
