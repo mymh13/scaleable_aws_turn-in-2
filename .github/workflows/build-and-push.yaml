@@ -84,20 +84,20 @@ jobs:
           [[ -z "${NAME}" || "${NAME}" == "None" ]] && { echo "ERROR: Manager Name tag missing"; exit 1; }
           echo "manager_name=${NAME}" >> "$GITHUB_OUTPUT"
 
-      - name: Resolve SSM managed instance id by tag Name=manager name
-        id: find-ssm-mi
-        shell: bash
-        run: |
-          set -euo pipefail
-          NAME="${{ steps.find-manager-name.outputs.manager_name }}"
-          MI=$(aws ssm describe-instance-information \
-            --region "${{ secrets.AWS_REGION }}" \
-            --filters "Key=tag:Name,Values=${NAME}" \
-            --query "InstanceInformationList[0].InstanceId" \
-            --output text)
-          echo "Managed InstanceId: ${MI}"
-          [[ -z "${MI}" || "${MI}" == "None" ]] && { echo "ERROR: No SSM managed instance matched tag Name=${NAME}"; exit 1; }
-          echo "mi=${MI}" >> "$GITHUB_OUTPUT"
+      # - name: Resolve SSM managed instance id by tag Name=manager name
+      #   id: find-ssm-mi
+      #   shell: bash
+      #   run: |
+      #     set -euo pipefail
+      #     NAME="${{ steps.find-manager-name.outputs.manager_name }}"
+      #     MI=$(aws ssm describe-instance-information \
+      #       --region "${{ secrets.AWS_REGION }}" \
+      #       --filters "Key=tag:Name,Values=${NAME}" \
+      #       --query "InstanceInformationList[0].InstanceId" \
+      #       --output text)
+      #     echo "Managed InstanceId: ${MI}"
+      #     [[ -z "${MI}" || "${MI}" == "None" ]] && { echo "ERROR: No SSM managed instance matched tag Name=${NAME}"; exit 1; }
+      #     echo "mi=${MI}" >> "$GITHUB_OUTPUT"
 
       - name: Update Swarm service to new image via SSM
         run: |
