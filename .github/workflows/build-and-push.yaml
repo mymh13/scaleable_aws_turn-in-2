@@ -67,17 +67,29 @@ jobs:
             --query "Reservations[].Instances[].InstanceId | [0]" \
             --output text)
           echo "Resolved manager InstanceId: ${MID}"
-          if [[ -z "${MID}" || "${MID}" == "None" ]]; then
-            echo "ERROR: Could not resolve manager InstanceId via logical-id=Manager"; exit 1;
-          fi
-          echo "instance_id=${MID}" >> "${GITHUB_OUTPUT}"
+          [[ -z "${MID}" || "${MID}" == "None" ]] && { echo "ERROR: No running Manager instance"; exit 1; }
+          echo "instance_id=${MID}" >> "$GITHUB_OUTPUT"
+
+      - name: Resolve Manager Name tag
+        id: find-manager-name
+        shell: bash
+        run: |
+          set -euo pipefail
+          NAME=$(aws ec2 describe-instances \
+            --region "${{ secrets.AWS_REGION }}" \
+            --instance-ids "${{ steps.find-manager.outputs.instance_id }}" \
+            --query "Reservations[].Instances[].Tags[?Key=='Name'].Value | [0]" \
+            --output text)
+          echo "Manager Name tag: ${NAME}"
+          [[ -z "${NAME}" || "${NAME}" == "None" ]] && { echo "ERROR: Manager Name tag missing"; exit 1; }
+          echo "manager_name=${NAME}" >> "$GITHUB_OUTPUT"
 
       - name: Update Swarm service to new image via SSM
         run: |
           FULL_IMAGE="${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:${{ env.IMAGE_TAG }}"
           aws ssm send-command \
             --region "${{ secrets.AWS_REGION }}" \
-            --instance-ids "${{ steps.find-manager.outputs.instance_id }}" \
+            --targets "Key=tag:Name,Values=${{ steps.find-manager-name.outputs.manager_name }}"
             --document-name "AWS-RunShellScript" \
             --comment "CI: set image tag to new build; Swarm will pull and roll" \
             --parameters "commands=[\"docker service update --image ${FULL_IMAGE} --with-registry-auth --update-order start-first --update-parallelism 1 myappname_web\"]"
@@ -86,7 +98,7 @@ jobs:
         run: |
           aws ssm send-command \
             --region "${{ secrets.AWS_REGION }}" \
-            --instance-ids "${{ steps.find-manager.outputs.instance_id }}" \
+            --targets "Key=tag:Name,Values=${{ steps.find-manager-name.outputs.manager_name }}"
             --document-name "AWS-RunShellScript" \
             --comment "Diag: list services, tasks, and listeners" \
             --parameters "commands=[
