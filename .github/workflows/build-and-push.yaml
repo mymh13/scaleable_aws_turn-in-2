@@ -47,14 +47,32 @@ jobs:
           push: true
           tags: ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:${{ env.IMAGE_TAG }}
 
+      # - name: Find Manager instance ID
+      #   id: find-manager
+      #   run: |
+      #       MID=$(aws ec2 describe-instances \
+      #           --region "${{ secrets.AWS_REGION }}" \
+      #           --filters "Name=tag:Name,Values=${{ vars.STACK_NAME_PREFIX }}-manager" "Name=instance-state-name,Values=running" \
+      #           --query "Reservations[0].Instances[0].InstanceId" --output text)
+      #       echo "instance_id=$MID" >> $GITHUB_OUTPUT
+
       - name: Find Manager instance ID
         id: find-manager
+        shell: bash
         run: |
-            MID=$(aws ec2 describe-instances \
-                --region "${{ secrets.AWS_REGION }}" \
-                --filters "Name=tag:Name,Values=${{ vars.STACK_NAME_PREFIX }}-manager" "Name=instance-state-name,Values=running" \
-                --query "Reservations[0].Instances[0].InstanceId" --output text)
-            echo "instance_id=$MID" >> $GITHUB_OUTPUT
+          set -euo pipefail
+          PREFIX="${{ vars.STACK_NAME_PREFIX }}"
+          echo "Using STACK_NAME_PREFIX='${PREFIX}'"
+          MID=$(aws ec2 describe-instances \
+            --region "${{ secrets.AWS_REGION }}" \
+            --filters "Name=tag:Name,Values=${PREFIX}-manager" "Name=instance-state-name,Values=running" \
+            --query "Reservations[].Instances[?State.Name=='running'].InstanceId | [0]" \
+            --output text)
+          echo "Resolved manager InstanceId: ${MID}"
+          if [[ -z "${MID}" || "${MID}" == "None" ]]; then
+            echo "ERROR: Could not resolve manager InstanceId (check repo variable STACK_NAME_PREFIX and EC2 Name tag)"; exit 1;
+          fi
+          echo "instance_id=${MID}" >> "${GITHUB_OUTPUT}"
 
       - name: Update Swarm service to new image via SSM
         run: |
