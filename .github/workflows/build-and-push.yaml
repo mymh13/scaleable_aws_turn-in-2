@@ -12,7 +12,7 @@ permissions:
 env:
   AWS_REGION: ${{ secrets.AWS_REGION }}
   ECR_REPOSITORY: ${{ secrets.ECR_REPOSITORY }}
-  IMAGE_TAG: ${{ secrets.IMAGE_TAG }}
+  IMAGE_TAG: ${{ github.sha }}
 
 jobs:
   build-and-push:
@@ -26,7 +26,7 @@ jobs:
             echo "GITHUB_REF=$GITHUB_REF"
             echo "GITHUB_REF_NAME=$GITHUB_REF_NAME"
 
-      - name: Configure AWS credentials (OIDC)
+      - name: Configure AWS credentials (OIDC)https://www.linkedin.com/feed/update/urn:li:activity:7376539829569929216/?commentUrn=urn%3Ali%3Acomment%3A(activity%3A7376539829569929216%2C7376577795692392448)&dashCommentUrn=urn%3Ali%3Afsd_comment%3A(7376577795692392448%2Curn%3Ali%3Aactivity%3A7376539829569929216)&dashReplyUrn=urn%3Ali%3Afsd_comment%3A(7376597675477090304%2Curn%3Ali%3Aactivity%3A7376539829569929216)&replyUrn=urn%3Ali%3Acomment%3A(activity%3A7376539829569929216%2C7376597675477090304)#
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
@@ -52,11 +52,12 @@ jobs:
                 --query "Reservations[0].Instances[0].InstanceId" --output text)
             echo "instance_id=$MID" >> $GITHUB_OUTPUT
 
-      - name: Trigger Swarm rolling update via SSM (by tag)
+      - name: Update Swarm service to new image via SSM
         run: |
-            aws ssm send-command \
+          FULL_IMAGE="${{ steps.ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ env.IMAGE_TAG }}"
+          aws ssm send-command \
             --region "${{ secrets.AWS_REGION }}" \
             --targets "Key=tag:Name,Values=${{ vars.STACK_NAME_PREFIX }}-manager" \
             --document-name "AWS-RunShellScript" \
-            --comment "CI: refresh swarm service after new image" \
-            --parameters 'commands=["docker service update --force myappname_web"]'
+            --comment "CI: set image tag to new build; Swarm will pull and roll" \
+            --parameters "commands=[\"docker service update --image ${FULL_IMAGE} --with-registry-auth --update-order start-first --update-parallelism 1 myappname_web\"]"

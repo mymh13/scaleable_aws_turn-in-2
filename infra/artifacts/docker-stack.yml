@@ -1,7 +1,7 @@
 version: "3.8"
 services:
   web:
-    image: __ECR_IMAGE__
+    image: __ECR_IMAGE__:${IMAGE_TAG}
     environment:
       - ASPNETCORE_URLS=http://+:8080
     ports: ["80:8080"]
@@ -9,9 +9,9 @@ services:
     deploy:
       replicas: 3
       placement:
-        # max_replicas_per_node: 1
+        max_replicas_per_node: 1
         preferences:
-          # - spread: node.id
+          # - spread: node.id - optional old alternative
           - spread: node.labels.role
       update_config:
         order: start-first

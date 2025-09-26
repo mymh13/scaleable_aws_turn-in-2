@@ -61,60 +61,65 @@ Resources:
                 for i in {1..10}; do docker info >/dev/null 2>&1 && break || sleep 2; done
               '
 
-            # 2) Init swarm, publish tokens, substitute ECR image, ECR login, deploy
+            # 2) Init swarm, publish tokens, fetch compose, wait for image, deploy
             - !Sub |
               bash -lc '
+                set -euxo pipefail
                 echo "export AWS_REGION=${AWS::Region}; export AWS_DEFAULT_REGION=${AWS::Region}" | tee -a /etc/profile.d/awsregion.sh
 
-                # IMDSv2 private IP
+                # Discover private IP (IMDSv2)
                 TOKEN=$(curl -sX PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 21600")
                 MAN_IP=$(curl -s -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/meta-data/local-ipv4)
 
-                # Init + publish join info
-                docker swarm init --advertise-addr "$MAN_IP"
-                docker node update --label-add role=manager "$(hostname)"
-                AZ=$(curl -s http://169.254.169.254/latest/meta-data/placement/availability-zone)
-                docker node update --label-add az="$AZ" "$(hostname)"
+                # Init swarm + publish join info
+                if [ "$(docker info --format "{{ .Swarm.LocalNodeState }}")" != "active" ]; then
+                  docker swarm init --advertise-addr "$MAN_IP"
+                fi
                 TOK=$(docker swarm join-token -q worker)
                 aws ssm put-parameter --name /swarm/manager-ip  --type String --overwrite --value "$MAN_IP" --region ${AWS::Region}
                 aws ssm put-parameter --name /swarm/worker-token --type String --overwrite --value "$TOK"     --region ${AWS::Region}
 
-                # Optional gate: wait for two Ready/Active workers
-                for i in {1..60}; do
-                  c=$(docker node ls --format "{{.ManagerStatus}} {{.Status}} {{.Availability}}" | awk '\''$1=="" && $2=="Ready" && $3=="Active"{c++} END{print c+0}'\'')
-                  [ "$c" -ge 2 ] && break || sleep 5
-                done
+                # Label the manager (for future spreading)
+                docker node update --label-add role=manager "$(hostname)" || true
+                AZ=$(curl -s http://169.254.169.254/latest/meta-data/placement/availability-zone || true)
+                [ -n "$AZ" ] && docker node update --label-add az="$AZ" "$(hostname)" || true
 
-                # Pull generic compose
+                # Fetch compose from S3 (correct path!) and verify it exists
                 aws s3 cp s3://${TemplateBucket}/${TemplatePrefix}artifacts/docker-stack.yml /tmp/docker-stack.yml --region ${AWS::Region}
+                test -s /tmp/docker-stack.yml || { echo "FATAL: /tmp/docker-stack.yml missing/empty"; exit 1; }
 
-                # substitute placeholder with real ECR image
+                # Substitute image placeholder
                 IMAGE="${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/swarm-dotnet-app:dev"
                 sed -i "s|__ECR_IMAGE__|$IMAGE|g" /tmp/docker-stack.yml
 
-                # login to ECR via instance role, then deploy with creds shared to workers
+                # ECR login (instance role)
                 aws ecr get-login-password --region ${AWS::Region} \
                   | docker login --username AWS --password-stdin "${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com"
-                
-                # WAIT for the image to exist (max ~ WaitSeconds)
-                echo "Waiting for ECR image ${RepositoryName}:${ImageTag} ..."
-                deadline=$(( $(date +%s) + ${WaitSeconds} ))
-                while [ $(date +%s) -lt $deadline ]; do
-                  if aws ecr describe-images --region ${AWS::Region} \
-                      --repository-name "${RepositoryName}" \
-                      --image-ids imageTag="${ImageTag}" >/dev/null 2>&1; then
-                    echo "Image found."
-                    break
+
+                # Wait until the tag exists in ECR (avoids racing the first push)
+                for i in {1..60}; do
+                  if aws ecr describe-images \
+                      --repository-name swarm-dotnet-app \
+                      --image-ids imageTag=dev \
+                      --region ${AWS::Region} >/dev/null 2>&1; then
+                    echo "ECR image tag found"; break
                   fi
-                  sleep ${PollInterval}
+                  echo "Waiting for ECR image tag dev... ($i)"
+                  sleep 5
                 done
 
+                # Deploy (and verify it actually created the service)
                 docker stack deploy -c /tmp/docker-stack.yml --with-registry-auth myappname
 
-                # Optional nudge for even spread (passes creds)
-                sleep 10
-                docker service rm myappname_web || true
-                docker stack deploy -c /tmp/docker-stack.yml --with-registry-auth myappname
+                # Sanity loop: ensure services exist (bail if not)
+                for i in {1..12}; do
+                  if docker service ls | grep -q "myappname_web"; then
+                    docker service ls
+                    break
+                  fi
+                  echo "Waiting for services to appear... ($i)"
+                  sleep 5
+                done
               '
 
   Worker1:
