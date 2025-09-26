@@ -37,51 +37,56 @@ Resources:
                 token.actions.githubusercontent.com:sub:
                   - !Sub 'repo:${GitHubOrg}/${GitHubRepo}:ref:${GitHubRef}'
       Policies:
-        - PolicyName: !Sub '${StackNamePrefix}-ecr-push'
-          PolicyDocument:
-            Version: '2012-10-17'
-            Statement:
-              # Needed to log in to registry
-              - Effect: Allow
-                Action: ecr:GetAuthorizationToken
-                Resource: '*'
-              # Push/pull to the specific repo
-              - Effect: Allow
-                Action:
-                  - ecr:BatchCheckLayerAvailability
-                  - ecr:CompleteLayerUpload
-                  - ecr:UploadLayerPart
-                  - ecr:InitiateLayerUpload
-                  - ecr:PutImage
-                  - ecr:BatchGetImage
-                  - ecr:GetDownloadUrlForLayer
-                Resource: !Sub 'arn:aws:ecr:${AWS::Region}:${AWS::AccountId}:repository/${RepositoryName}'
-              # Allow SSM using the document (no conditions)
-              - Effect: Allow
-                Action: ssm:SendCommand
-                Resource: !Sub arn:aws:ssm:${AWS::Region}::document/AWS-RunShellScript
-              # Allow targeting Manager Instance (tag-guarded)
-              - Effect: Allow
-                Action:
-                  - ssm:SendCommand
-                  - ssm:GetCommandInvocation
-                  - ssm:ListCommandInvocations       # (optional)
-                  - ssm:ListCommands                 # (optional)
-                  - ssm:DescribeInstanceInformation  # (optional, for debugging)
-                Resource: !Sub arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:managed-instance/*
-                # (Optional tighter guard—only allow targeting instances tagged Name=<prefix>-manager)
-                Condition:
-                  StringEquals:
-                    ssm:resourceTag/Name: !Sub '${StackNamePrefix}-manager'
-              # Allow CI to look up the Manager instance ID
-              - Effect: Allow
-                Action: ec2:DescribeInstances
-                Resource: "*"
-              # allow SSM inventory lookup (needed to map EC2 -> mi-*)
-              - Effect: Allow
-                Action:
-                  - ssm:DescribeInstanceInformation
-                Resource: "*"   # required; this API doesn't support resource-level ARNs
+      - PolicyName: !Sub '${StackNamePrefix}-ecr-push'
+        PolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+            # 1) ECR (login + push/pull to one repo)
+            - Effect: Allow
+              Action: ecr:GetAuthorizationToken
+              Resource: '*'
+            - Effect: Allow
+              Action:
+                - ecr:BatchCheckLayerAvailability
+                - ecr:CompleteLayerUpload
+                - ecr:UploadLayerPart
+                - ecr:InitiateLayerUpload
+                - ecr:PutImage
+                - ecr:BatchGetImage
+                - ecr:GetDownloadUrlForLayer
+              Resource: !Sub 'arn:aws:ecr:${AWS::Region}:${AWS::AccountId}:repository/${RepositoryName}'
+
+            # 2) SSM SendCommand must allow the *document* resource
+            - Effect: Allow
+              Action: ssm:SendCommand
+              Resource: !Sub arn:aws:ssm:${AWS::Region}::document/AWS-RunShellScript
+
+            # 3) SSM SendCommand targeting the *EC2 instance* (we use --instance-ids)
+            - Effect: Allow
+              Action: ssm:SendCommand
+              Resource: !Sub arn:aws:ec2:${AWS::Region}:${AWS::AccountId}:instance/*
+              Condition:
+                StringEquals:
+                  ec2:ResourceTag/Name: !Sub '${StackNamePrefix}-manager'
+
+            # 4) (Optional but handy) Read back command output / list invocations
+            #    These APIs are effectively global; safest is Resource:"*"
+            - Effect: Allow
+              Action:
+                - ssm:GetCommandInvocation
+                - ssm:ListCommandInvocations
+                - ssm:ListCommands
+              Resource: "*"
+
+            # 5) (Optional for debugging) SSM inventory lookup must be "*"
+            - Effect: Allow
+              Action: ssm:DescribeInstanceInformation
+              Resource: "*"
+
+            # 6) Needed to resolve the manager EC2 by tags
+            - Effect: Allow
+              Action: ec2:DescribeInstances
+              Resource: "*"
 
 Outputs:
   GitHubEcrPushRoleArn:
