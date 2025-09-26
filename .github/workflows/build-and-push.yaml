@@ -84,7 +84,7 @@ jobs:
           [[ -z "${NAME}" || "${NAME}" == "None" ]] && { echo "ERROR: Manager Name tag missing"; exit 1; }
           echo "manager_name=${NAME}" >> "$GITHUB_OUTPUT"
 
-      - name: Resolve SSM managed instance id (by tag: Name=<manager name>)
+      - name: Resolve SSM managed instance id by tag Name=manager name
         id: find-ssm-mi
         shell: bash
         run: |
@@ -104,7 +104,7 @@ jobs:
           FULL_IMAGE="${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:${{ env.IMAGE_TAG }}"
           aws ssm send-command \
             --region "${{ secrets.AWS_REGION }}" \
-            --targets "Key=tag:Name,Values=${{ steps.find-manager-name.outputs.manager_name }}" \
+            --instance-ids "${{ steps.find-ssm-mi.outputs.mi }}" \
             --document-name "AWS-RunShellScript" \
             --comment "CI: set image tag to new build; Swarm will pull and roll" \
             --parameters "commands=[\"docker service update --image ${FULL_IMAGE} --with-registry-auth --update-order start-first --update-parallelism 1 myappname_web\"]"
@@ -113,7 +113,7 @@ jobs:
         run: |
           aws ssm send-command \
             --region "${{ secrets.AWS_REGION }}" \
-            --targets "Key=tag:Name,Values=${{ steps.find-manager-name.outputs.manager_name }}" \
+            --instance-ids "${{ steps.find-ssm-mi.outputs.mi }}" \
             --document-name "AWS-RunShellScript" \
             --comment "Diag: list services, tasks, and listeners" \
             --parameters "commands=[
