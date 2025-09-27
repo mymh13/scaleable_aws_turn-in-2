@@ -65,9 +65,6 @@ Resources:
             - Effect: Allow
               Action: ssm:SendCommand
               Resource: !Sub arn:aws:ec2:${AWS::Region}:${AWS::AccountId}:instance/*
-              Condition:
-                StringEquals:
-                  ec2:ResourceTag/Name: !Sub '${StackNamePrefix}-manager'
 
             # 4) (Optional but handy) Read back command output / list invocations
             #    These APIs are effectively global; safest is Resource:"*"
