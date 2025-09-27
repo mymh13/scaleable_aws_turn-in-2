@@ -88,6 +88,10 @@ Resources:
               Action: ec2:DescribeInstances
               Resource: "*"
 
+            - Effect: Allow
+              Action: ssm:SendCommand
+              Resource: !Sub arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:managed-instance/*
+
 Outputs:
   GitHubEcrPushRoleArn:
     Value: !GetAtt GitHubEcrPushRole.Arn

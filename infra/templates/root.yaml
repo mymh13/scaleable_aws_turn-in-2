@@ -119,10 +119,8 @@ Resources:
 Outputs:
   ManagerPublicIp:
     Value: !GetAtt SwarmEc2Stack.Outputs.ManagerPublicIp
-  Worker1PublicIp:
-    Value: !GetAtt SwarmEc2Stack.Outputs.Worker1PublicIp
-  Worker2PublicIp:
-    Value: !GetAtt SwarmEc2Stack.Outputs.Worker2PublicIp
+  WorkerPublicIp:
+    Value: !GetAtt SwarmEc2Stack.Outputs.WorkerPublicIp
   SecurityGroupId:
     Value: !GetAtt SwarmSecurityGroupStack.Outputs.SwarmSecurityGroupId
   DynamoTableName:
