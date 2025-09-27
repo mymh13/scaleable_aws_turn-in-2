@@ -69,7 +69,6 @@ Resources:
           aws s3 cp s3://${TemplateBucket}/${TemplatePrefix}artifacts/docker-stack.yml /tmp/docker-stack.yml --region ${AWS::Region}
           docker stack deploy -c /tmp/docker-stack.yml myappname
 
-
   Worker:
     Type: AWS::EC2::Instance
     DependsOn: Manager
