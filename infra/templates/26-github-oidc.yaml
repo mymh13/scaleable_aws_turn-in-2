@@ -88,7 +88,6 @@ Resources:
               Action: ec2:DescribeInstances
               Resource: "*"
 
-
             # 7) Allow reading manager SSM managed-instance id
             - Effect: Allow
               Action: ssm:GetParameter
