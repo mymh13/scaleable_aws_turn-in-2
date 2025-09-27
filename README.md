@@ -68,4 +68,5 @@ aws cloudformation describe-stacks \
   --output text
 ```
   
-Just adding this line to have an update to test the workflow : redeploy
+Just adding this line to have an update to test the workflow :  
+redeploy me up, Scotty  
