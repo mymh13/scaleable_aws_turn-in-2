@@ -69,4 +69,5 @@ aws cloudformation describe-stacks \
 ```
   
 Just adding this line to have an update to test the workflow :  
-redeploy me up, Scotty  
+re-deploy me up, Scotty  
+  
