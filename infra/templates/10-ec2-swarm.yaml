@@ -48,7 +48,7 @@ Resources:
           #!/bin/bash
           set -euxo pipefail
           dnf update -y
-          dnf install -y docker awscli
+          dnf install -y docker awscli || dnf install -y moby-engine docker-cli awscli
           systemctl enable --now docker
           usermod -aG docker ec2-user
           echo "export AWS_REGION=${AWS::Region}; export AWS_DEFAULT_REGION=${AWS::Region}" | tee -a /etc/profile.d/awsregion.sh
@@ -90,7 +90,7 @@ Resources:
           #!/bin/bash
           set -euxo pipefail
           dnf update -y
-          dnf install -y docker awscli
+          dnf install -y docker awscli || dnf install -y moby-engine docker-cli awscli
           systemctl enable --now docker
           usermod -aG docker ec2-user
           echo "export AWS_REGION=${AWS::Region}; export AWS_DEFAULT_REGION=${AWS::Region}" | tee -a /etc/profile.d/awsregion.sh
