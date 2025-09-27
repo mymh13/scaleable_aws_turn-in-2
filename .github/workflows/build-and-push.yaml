@@ -70,6 +70,16 @@ jobs:
             --comment "CI: Deploy/Update Swarm service" \
             --parameters "commands=[\"docker service update --image ${FULL_IMAGE} --with-registry-auth --update-order start-first --update-parallelism 1 myappname_web\"]"
 
+      - name: Create Swarm service if missing
+        run: |
+          FULL_IMAGE="${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:${{ env.IMAGE_TAG }}"
+          aws ssm send-command \
+            --region "${{ env.AWS_REGION }}" \
+            --instance-ids "${{ steps.find-manager.outputs.instance_id }}" \
+            --document-name "AWS-RunShellScript" \
+            --comment "CI: Create Swarm service if missing" \
+            --parameters "commands=[\"docker service create --name myappname_web --replicas 1 --publish 5000:80 --with-registry-auth ${FULL_IMAGE} || true\"]"
+
       - name: Deploy/Update Swarm visualizer via SSM
         run: |
           aws ssm send-command \
