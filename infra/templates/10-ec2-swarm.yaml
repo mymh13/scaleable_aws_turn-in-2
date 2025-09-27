@@ -49,7 +49,7 @@ Resources:
           set -euxo pipefail
           dnf update -y
           # moby-engine below is just a failsafe "in case it would be needed"
-          dnf install -y docker awscli || dnf install -y moby-engine docker-cli awscli
+          dnf install -y docker awscli > /var/log/docker-install.log 2>&1 || dnf install -y moby-engine docker-cli awscli >> /var/log/docker-install.log 2>&1
           systemctl enable --now docker
           usermod -aG docker ec2-user
           echo "export AWS_REGION=${AWS::Region}; export AWS_DEFAULT_REGION=${AWS::Region}" | tee -a /etc/profile.d/awsregion.sh
@@ -91,7 +91,7 @@ Resources:
           #!/bin/bash
           set -euxo pipefail
           dnf update -y
-          dnf install -y docker awscli || dnf install -y moby-engine docker-cli awscli
+          dnf install -y docker awscli > /var/log/docker-install.log 2>&1 || dnf install -y moby-engine docker-cli awscli >> /var/log/docker-install.log 2>&1
           systemctl enable --now docker
           usermod -aG docker ec2-user
           echo "export AWS_REGION=${AWS::Region}; export AWS_DEFAULT_REGION=${AWS::Region}" | tee -a /etc/profile.d/awsregion.sh
