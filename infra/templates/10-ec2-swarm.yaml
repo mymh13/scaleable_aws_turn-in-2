@@ -44,30 +44,13 @@ Resources:
         - Key: Name
           Value: !Sub '${StackNamePrefix}-manager'
       UserData:
-        Fn::Base64: !Sub |
+        "Fn::Base64": !Sub |
           #!/bin/bash
           set -euxo pipefail
-          dnf update -y
-          # moby-engine below is just a failsafe "in case it would be needed"
-          dnf install -y docker awscli > /var/log/docker-install.log 2>&1 || dnf install -y moby-engine docker-cli awscli >> /var/log/docker-install.log 2>&1
+          dnf install -y docker
           systemctl enable --now docker
           usermod -aG docker ec2-user
-          echo "export AWS_REGION=${AWS::Region}; export AWS_DEFAULT_REGION=${AWS::Region}" | tee -a /etc/profile.d/awsregion.sh
-
-          # Wait for Docker to be ready
-          for i in {1..10}; do docker info >/dev/null 2>&1 && break || sleep 2; done
-
-          # IMDSv2 token + private IP
-          TOKEN=$(curl -sX PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 21600")
-          MAN_IP=$(curl -s -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/meta-data/local-ipv4)
-
-          # Swarm init + publish + deploy
-          docker swarm init --advertise-addr "$MAN_IP"
-          TOK=$(docker swarm join-token -q worker)
-          aws ssm put-parameter --name /swarm/manager-ip  --type String --overwrite --value "$MAN_IP" --region ${AWS::Region}
-          aws ssm put-parameter --name /swarm/worker-token --type String --overwrite --value "$TOK"     --region ${AWS::Region}
-          aws s3 cp s3://${TemplateBucket}/${TemplatePrefix}artifacts/docker-stack.yml /tmp/docker-stack.yml --region ${AWS::Region}
-          docker stack deploy -c /tmp/docker-stack.yml myappname
+          docker swarm init
 
   Worker:
     Type: AWS::EC2::Instance
@@ -88,21 +71,20 @@ Resources:
       UserData:
         Fn::Base64: !Sub |
           #!/bin/bash
-          set -euxo pipefail
           dnf update -y
-          dnf install -y docker awscli > /var/log/docker-install.log 2>&1 || dnf install -y moby-engine docker-cli awscli >> /var/log/docker-install.log 2>&1
+          dnf install -y docker
           systemctl enable --now docker
           usermod -aG docker ec2-user
-          echo "export AWS_REGION=${AWS::Region}; export AWS_DEFAULT_REGION=${AWS::Region}" | tee -a /etc/profile.d/awsregion.sh
+          # echo "export AWS_REGION=${AWS::Region}; export AWS_DEFAULT_REGION=${AWS::Region}" | tee -a /etc/profile.d/awsregion.sh
 
-          # Wait for manager IP and worker token in SSM
-          for i in {1..60}; do
-            MIP=$(aws ssm get-parameter --name /swarm/manager-ip --query Parameter.Value --output text --region ${AWS::Region} 2>/dev/null) || true
-            TOK=$(aws ssm get-parameter --name /swarm/worker-token --query Parameter.Value --output text --region ${AWS::Region} 2>/dev/null) || true
-            if [ -n "$MIP" ] && [ -n "$TOK" ]; then break; fi
-            sleep 2
-          done
-          docker swarm join --token "$TOK" "$MIP:2377"
+          # # Wait for manager IP and worker token in SSM
+          # for i in {1..60}; do
+          #   MIP=$(aws ssm get-parameter --name /swarm/manager-ip --query Parameter.Value --output text --region ${AWS::Region} 2>/dev/null) || true
+          #   TOK=$(aws ssm get-parameter --name /swarm/worker-token --query Parameter.Value --output text --region ${AWS::Region} 2>/dev/null) || true
+          #   if [ -n "$MIP" ] && [ -n "$TOK" ]; then break; fi
+          #   sleep 2
+          # done
+          # docker swarm join --token "$TOK" "$MIP:2377"
 
 Outputs:
   ManagerPublicIp:

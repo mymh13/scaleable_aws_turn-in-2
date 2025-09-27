@@ -1,4 +1,4 @@
-name: Build and push Docker image to ECR
+name: Build and deploy to Docker Swarm
 
 on:
   push:
@@ -16,33 +16,22 @@ env:
   ECR_REGISTRY: ${{ secrets.ECR_REGISTRY }}
 
 jobs:
-  build-and-push:
+  build-and-deploy:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Mask registry in logs
-        run: echo "::add-mask::${{ secrets.ECR_REGISTRY }}"
-
-      - name: Debug refs
-        run: |
-            echo "GITHUB_REF=$GITHUB_REF"
-            echo "GITHUB_REF_NAME=$GITHUB_REF_NAME"
-
-      - name: Configure AWS credentials (OIDC)https://www.linkedin.com/feed/update/urn:li:activity:7376539829569929216/?commentUrn=urn%3Ali%3Acomment%3A(activity%3A7376539829569929216%2C7376577795692392448)&dashCommentUrn=urn%3Ali%3Afsd_comment%3A(7376577795692392448%2Curn%3Ali%3Aactivity%3A7376539829569929216)&dashReplyUrn=urn%3Ali%3Afsd_comment%3A(7376597675477090304%2Curn%3Ali%3Aactivity%3A7376539829569929216)&replyUrn=urn%3Ali%3Acomment%3A(activity%3A7376539829569929216%2C7376597675477090304)#
+      - name: Configure AWS credentials (OIDC)
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Login to Amazon ECR
-        id: ecr
         uses: aws-actions/amazon-ecr-login@v2
 
-
-      # Build and push image to ECR before any SSM/EC2 steps
-      - name: Build and push
+      - name: Build and push Docker image
         uses: docker/build-push-action@v6
         with:
           context: .
@@ -51,37 +40,32 @@ jobs:
 
       - name: Find Manager instance ID
         id: find-manager
-        shell: bash
         run: |
-          set -euo pipefail
           MID=$(aws ec2 describe-instances \
-            --region "${{ secrets.AWS_REGION }}" \
+            --region "${{ env.AWS_REGION }}" \
             --filters "Name=tag:aws:cloudformation:logical-id,Values=Manager" "Name=instance-state-name,Values=running" \
             --query "Reservations[].Instances[].InstanceId | [0]" \
             --output text)
-          echo "Resolved manager InstanceId: ${MID}"
-          [[ -z "${MID}" || "${MID}" == "None" ]] && { echo "ERROR: No running Manager instance"; exit 1; }
           echo "instance_id=${MID}" >> "$GITHUB_OUTPUT"
 
-
-      - name: Resolve manager SSM managed-instance id
-        id: find-ssm-mi
-        continue-on-error: true
+      - name: Wait for SSM agent on manager
         run: |
-          set -euo pipefail
-          MI=$(aws ssm get-parameter \
-            --region "${{ secrets.AWS_REGION }}" \
-            --name /swarm/manager/mi \
-            --query 'Parameter.Value' --output text) || true
-          echo "mi=${MI}" >> "$GITHUB_OUTPUT"
+          for i in {1..30}; do
+            SSM_STATE=$(aws ssm describe-instance-information \
+              --region "${{ env.AWS_REGION }}" \
+              --filters "Key=InstanceIds,Values=${{ steps.find-manager.outputs.instance_id }}" \
+              --query "InstanceInformationList[0].PingStatus" --output text)
+            if [ "$SSM_STATE" = "Online" ]; then exit 0; fi
+            sleep 10
+          done
+          echo "ERROR: SSM agent not online on manager" && exit 1
 
-      - name: Update Swarm service to new image via SSM
-        if: steps.find-ssm-mi.outputs.mi != ''
+      - name: Deploy/Update Swarm service via SSM
         run: |
           FULL_IMAGE="${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:${{ env.IMAGE_TAG }}"
           aws ssm send-command \
-            --region "${{ secrets.AWS_REGION }}" \
-            --instance-ids "${{ steps.find-ssm-mi.outputs.mi }}" \
+            --region "${{ env.AWS_REGION }}" \
+            --instance-ids "${{ steps.find-manager.outputs.instance_id }}" \
             --document-name "AWS-RunShellScript" \
-            --comment "CI: set image tag to new build; Swarm will pull and roll" \
+            --comment "CI: Deploy/Update Swarm service" \
             --parameters "commands=[\"docker service update --image ${FULL_IMAGE} --with-registry-auth --update-order start-first --update-parallelism 1 myappname_web\"]"
