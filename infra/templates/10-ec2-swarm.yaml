@@ -48,6 +48,7 @@ Resources:
           #!/bin/bash
           set -euxo pipefail
           dnf update -y
+          # moby-engine below is just a failsafe "in case it would be needed"
           dnf install -y docker awscli || dnf install -y moby-engine docker-cli awscli
           systemctl enable --now docker
           usermod -aG docker ec2-user
