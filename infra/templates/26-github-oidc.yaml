@@ -88,9 +88,11 @@ Resources:
               Action: ec2:DescribeInstances
               Resource: "*"
 
+
+            # 7) Allow reading manager SSM managed-instance id
             - Effect: Allow
-              Action: ssm:SendCommand
-              Resource: !Sub arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:managed-instance/*
+              Action: ssm:GetParameter
+              Resource: !Sub arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/swarm/manager/mi
 
 Outputs:
   GitHubEcrPushRoleArn:
