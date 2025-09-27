@@ -69,3 +69,12 @@ jobs:
             --document-name "AWS-RunShellScript" \
             --comment "CI: Deploy/Update Swarm service" \
             --parameters "commands=[\"docker service update --image ${FULL_IMAGE} --with-registry-auth --update-order start-first --update-parallelism 1 myappname_web\"]"
+
+      - name: Deploy/Update Swarm visualizer via SSM
+        run: |
+          aws ssm send-command \
+            --region "${{ env.AWS_REGION }}" \
+            --instance-ids "${{ steps.find-manager.outputs.instance_id }}" \
+            --document-name "AWS-RunShellScript" \
+            --comment "CI: Deploy/Update Swarm visualizer" \
+            --parameters "commands=[\"docker service create --name viz --publish=8080:8080/tcp --constraint=node.role==manager --mount=type=bind,src=/var/run/docker.sock,dst=/var/run/docker.sock dockersamples/visualizer || docker service update --force viz\"]"
