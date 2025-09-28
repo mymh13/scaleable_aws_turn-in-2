@@ -1,5 +1,5 @@
 AWSTemplateFormatVersion: '2010-09-09'
-Description: EC2 instances for Swarm (1 manager, 2 workers) with Docker installed
+Description: EC2 instances for Swarm (1 manager, workers) with Docker installed
 
 Parameters:
   StackNamePrefix:
