@@ -69,7 +69,7 @@ jobs:
             --instance-ids "${{ steps.find-manager.outputs.instance_id }}" \
             --document-name "AWS-RunShellScript" \
             --comment "CI: Create Swarm service if missing" \
-            --parameters "commands=[\"aws ecr get-login-password --region ${{ env.AWS_REGION }} | docker login --username AWS --password-stdin ${{ env.ECR_REGISTRY }} && docker service create --name myappname_web --replicas 1 --publish 5000:8080 --with-registry-auth ${FULL_IMAGE} || true\"]"
+            --parameters "commands=[\"aws ecr get-login-password --region ${{ env.AWS_REGION }} | docker login --username AWS --password-stdin ${{ env.ECR_REGISTRY }} && docker service create --name myappname_web --replicas 1 --publish 80:8080 --with-registry-auth ${FULL_IMAGE} || true\"]"
 
       - name: Deploy/Update Swarm service via SSM
         run: |
@@ -79,7 +79,7 @@ jobs:
             --instance-ids "${{ steps.find-manager.outputs.instance_id }}" \
             --document-name "AWS-RunShellScript" \
             --comment "CI: Deploy/Update Swarm service" \
-            --parameters "commands=[\"aws ecr get-login-password --region ${{ env.AWS_REGION }} | docker login --username AWS --password-stdin ${{ env.ECR_REGISTRY }} && docker service update --image ${FULL_IMAGE} --with-registry-auth --update-order start-first --update-parallelism 1 --publish-add 5000:8080 myappname_web\"]"
+            --parameters "commands=[\"aws ecr get-login-password --region ${{ env.AWS_REGION }} | docker login --username AWS --password-stdin ${{ env.ECR_REGISTRY }} && docker service update --image ${FULL_IMAGE} --with-registry-auth --update-order start-first --update-parallelism 1 --publish-add 80:8080 myappname_web\"]"
 
       - name: Deploy/Update Swarm visualizer via SSM
         run: |
