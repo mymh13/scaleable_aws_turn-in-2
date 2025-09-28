@@ -61,31 +61,41 @@ jobs:
           done
           echo "ERROR: SSM agent not online on manager" && exit 1
 
-      - name: Create Swarm service if missing
+
+      - name: Remove old Swarm app service (if exists)
+        run: |
+          aws ssm send-command \
+            --region "${{ env.AWS_REGION }}" \
+            --instance-ids "${{ steps.find-manager.outputs.instance_id }}" \
+            --document-name "AWS-RunShellScript" \
+            --comment "CI: Remove old Swarm app service" \
+            --parameters "commands=[\"docker service rm myappname_web || true\"]"
+
+      - name: Create Swarm app service
         run: |
           FULL_IMAGE="${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:${{ env.IMAGE_TAG }}"
           aws ssm send-command \
             --region "${{ env.AWS_REGION }}" \
             --instance-ids "${{ steps.find-manager.outputs.instance_id }}" \
             --document-name "AWS-RunShellScript" \
-            --comment "CI: Create Swarm service if missing" \
-            --parameters "commands=[\"aws ecr get-login-password --region ${{ env.AWS_REGION }} | docker login --username AWS --password-stdin ${{ env.ECR_REGISTRY }} && docker service create --name myappname_web --replicas 1 --publish 80:80 --with-registry-auth ${FULL_IMAGE} || true\"]"
+            --comment "CI: Create Swarm app service" \
+            --parameters "commands=[\"aws ecr get-login-password --region ${{ env.AWS_REGION }} | docker login --username AWS --password-stdin ${{ env.ECR_REGISTRY }} && docker service create --name myappname_web --replicas 1 --publish 80:80 --with-registry-auth ${FULL_IMAGE}\"]"
 
-      - name: Deploy/Update Swarm service via SSM
-        run: |
-          FULL_IMAGE="${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:${{ env.IMAGE_TAG }}"
-          aws ssm send-command \
-            --region "${{ env.AWS_REGION }}" \
-            --instance-ids "${{ steps.find-manager.outputs.instance_id }}" \
-            --document-name "AWS-RunShellScript" \
-            --comment "CI: Deploy/Update Swarm service" \
-            --parameters "commands=[\"aws ecr get-login-password --region ${{ env.AWS_REGION }} | docker login --username AWS --password-stdin ${{ env.ECR_REGISTRY }} && docker service update --image ${FULL_IMAGE} --with-registry-auth --update-order start-first --update-parallelism 1 --publish-add 80:8080 myappname_web\"]"
 
-      - name: Deploy/Update Swarm visualizer via SSM
+      - name: Remove old Swarm visualizer service (if exists)
         run: |
           aws ssm send-command \
             --region "${{ env.AWS_REGION }}" \
             --instance-ids "${{ steps.find-manager.outputs.instance_id }}" \
             --document-name "AWS-RunShellScript" \
-            --comment "CI: Deploy/Update Swarm visualizer" \
-            --parameters "commands=[\"docker service create --name viz --publish=8080:8080/tcp --constraint=node.role==manager --mount=type=bind,src=/var/run/docker.sock,dst=/var/run/docker.sock dockersamples/visualizer || docker service update --force viz\"]"
+            --comment "CI: Remove old Swarm visualizer service" \
+            --parameters "commands=[\"docker service rm viz || true\"]"
+
+      - name: Create Swarm visualizer service
+        run: |
+          aws ssm send-command \
+            --region "${{ env.AWS_REGION }}" \
+            --instance-ids "${{ steps.find-manager.outputs.instance_id }}" \
+            --document-name "AWS-RunShellScript" \
+            --comment "CI: Create Swarm visualizer service" \
+            --parameters "commands=[\"docker service create --name viz --publish=8080:8080/tcp --constraint=node.role==manager --mount=type=bind,src=/var/run/docker.sock,dst=/var/run/docker.sock dockersamples/visualizer\"]"
