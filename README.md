@@ -1,12 +1,7 @@
-This is just a study project to try to combine Docker Swarm with a simple .NET MVC application
+This is the turn-in project for Skalbara Molnapplikationer for the CLO24-Program at Campus Mölndal. Author is Niklas Häll, 2025.
   
-The goal is not to build a fullscale application, or even set things up properly, the aim for this is simply to explore and try to get a grasp of the mechanics within the systems.  
-
-Feel free to browse around but do not expect this to be a functional or safe setup for anything you might need!
-  
----
-  
-The "howto-scalable-form.pdf" has a huge tutorial describing how to build this project.
+This project is building on this repo: https://github.com/mymh13/swarm-dotnet-test
+It has been heavily modified and expanded upon from that foundation.
 
 ---
   
@@ -30,7 +25,7 @@ aws cloudformation create-stack \
 
 aws cloudformation wait stack-create-complete \
   --region "$REGION" --stack-name "$STACK"
-```https://meet.google.com/omq-nvug-ppf
+```
   
 Daily cycles: update the stack
   
@@ -42,7 +37,6 @@ aws cloudformation update-stack \
   --parameters file://"$PARAMS" \
   --capabilities CAPABILITY_IAM CAPABILITY_NAMED_IAM
 ```
-  
   
 Daily cycles: teardown
   
@@ -67,9 +61,3 @@ aws cloudformation describe-stacks \
   --query "Stacks[0].Outputs[?OutputKey=='GitHubEcrPushRoleArn'].OutputValue" \
   --output text
 ```
-  
-Just adding this line to have an update to test the workflow :  
-re-deploy me up, Scotty  
-I am trigger happy, I want to trigger workflows. Do you?
-This. Has. To. Work. How do I know? Because it is my job, to know.  
-Eric Cantona is the King. Have you seen the seagulls?  
