@@ -77,14 +77,23 @@ Resources:
           usermod -aG docker ec2-user
           # echo "export AWS_REGION=${AWS::Region}; export AWS_DEFAULT_REGION=${AWS::Region}" | tee -a /etc/profile.d/awsregion.sh
 
-          # # Wait for manager IP and worker token in SSM
-          # for i in {1..60}; do
-          #   MIP=$(aws ssm get-parameter --name /swarm/manager-ip --query Parameter.Value --output text --region ${AWS::Region} 2>/dev/null) || true
-          #   TOK=$(aws ssm get-parameter --name /swarm/worker-token --query Parameter.Value --output text --region ${AWS::Region} 2>/dev/null) || true
-          #   if [ -n "$MIP" ] && [ -n "$TOK" ]; then break; fi
-          #   sleep 2
-          # done
-          # docker swarm join --token "$TOK" "$MIP:2377"
+          # Wait for manager IP and join token to be available in SSM
+          for i in {1..30}; do
+            MANAGER_IP=$(aws ssm get-parameter --name /swarm/manager-ip --region ${AWS::Region} --query 'Parameter.Value' --output text 2>/dev/null)
+            JOIN_TOKEN=$(aws ssm get-parameter --name /swarm/worker-token --region ${AWS::Region} --query 'Parameter.Value' --output text 2>/dev/null)
+            if [[ -n "$MANAGER_IP" && -n "$JOIN_TOKEN" ]]; then
+              break
+            fi
+            sleep 10
+          done
+
+          # Join the swarm
+          if [[ -n "$MANAGER_IP" && -n "$JOIN_TOKEN" ]]; then
+            docker swarm join --token "$JOIN_TOKEN" "$MANAGER_IP":2377
+          else
+            echo "ERROR: Manager IP or join token not found after waiting."
+            exit 1
+          fi
 
 Outputs:
   ManagerPublicIp:
