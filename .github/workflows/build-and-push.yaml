@@ -78,7 +78,7 @@ jobs:
             --instance-ids "${{ steps.find-manager.outputs.instance_id }}" \
             --document-name "AWS-RunShellScript" \
             --comment "CI: Remove old image and create Swarm app service" \
-            --parameters "commands=[\"docker image rm ${FULL_IMAGE} || true && aws ecr get-login-password --region ${{ env.AWS_REGION }} | docker login --username AWS --password-stdin ${{ env.ECR_REGISTRY }} && docker service create --name myappname_web --mode replicated --replicas 3 --publish 80:80 --endpoint-mode dnsrr --with-registry-auth ${FULL_IMAGE}\"]"
+            --parameters "commands=[\"docker image rm ${FULL_IMAGE} || true && aws ecr get-login-password --region ${{ env.AWS_REGION }} | docker login --username AWS --password-stdin ${{ env.ECR_REGISTRY }} && docker service create --name myappname_web --mode replicated --replicas 3 --publish 80:80 --with-registry-auth ${FULL_IMAGE}\"]"
 
       - name: Remove old Swarm visualizer service (if exists)
         run: |
