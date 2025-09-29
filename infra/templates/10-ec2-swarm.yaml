@@ -51,6 +51,9 @@ Resources:
           systemctl enable --now docker
           usermod -aG docker ec2-user
           docker swarm init
+          # Publish manager's private IP to SSM Parameter Store
+          MANAGER_IP=$(curl -s http://169.254.169.254/latest/meta-data/local-ipv4)
+          aws ssm put-parameter --name /swarm/manager-ip --type String --overwrite --value "$MANAGER_IP" --region ${AWS::Region}
 
   Worker:
     Type: AWS::EC2::Instance
