@@ -26,8 +26,11 @@ public class HomeController : Controller
             using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(2));
             var instanceId = await _httpClient.GetStringAsync("http://169.254.169.254/latest/meta-data/instance-id", cts.Token);
 
-            // On AWS, use instance ID as primary identifier
-            return instanceId;
+            // Get container hostname for uniqueness within the same instance
+            var hostname = Environment.MachineName;
+            var containerInfo = hostname.Length > 12 ? hostname.Substring(0, 12) : hostname;
+
+            return $"{instanceId}-{containerInfo}";
         }
         catch
         {
