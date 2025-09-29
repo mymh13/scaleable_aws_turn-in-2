@@ -109,9 +109,9 @@ Resources:
       LaunchTemplate:
         LaunchTemplateId: !Ref WorkerLaunchTemplate
         Version: !GetAtt WorkerLaunchTemplate.LatestVersionNumber
-      MinSize: '2'
+      MinSize: '3'
       MaxSize: '10'
-      DesiredCapacity: '2'
+      DesiredCapacity: '3'
       Tags:
         - Key: Name
           Value: !Sub '${StackNamePrefix}-worker'
