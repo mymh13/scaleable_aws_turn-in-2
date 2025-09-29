@@ -58,22 +58,15 @@ Resources:
           JOIN_TOKEN=$(docker swarm join-token worker -q)
           aws ssm put-parameter --name /swarm/worker-token --type String --overwrite --value "$JOIN_TOKEN" --region ${AWS::Region}
 
-  Worker:
-    Type: AWS::EC2::Instance
-    DependsOn: Manager
+
+  WorkerLaunchConfig:
+    Type: AWS::AutoScaling::LaunchConfiguration
     Properties:
       ImageId: !Ref AmiId
       InstanceType: !Ref InstanceType
       KeyName: !Ref KeyPairName
-      SubnetId: !Ref PublicSubnetId
-      SecurityGroupIds: [ !Ref SecurityGroupId ]
+      SecurityGroups: [ !Ref SecurityGroupId ]
       IamInstanceProfile: !Ref InstanceProfileName
-      MetadataOptions:
-        HttpEndpoint: enabled
-        HttpTokens: required   # IMDSv2 required
-      Tags:
-        - Key: Name
-          Value: !Sub '${StackNamePrefix}-worker'
       UserData:
         Fn::Base64: !Sub |
           #!/bin/bash
@@ -106,8 +99,19 @@ Resources:
             exit 1
           fi
 
+  WorkerAutoScalingGroup:
+    Type: AWS::AutoScaling::AutoScalingGroup
+    Properties:
+      VPCZoneIdentifier: [ !Ref PublicSubnetId ]
+      LaunchConfigurationName: !Ref WorkerLaunchConfig
+      MinSize: '2'
+      MaxSize: '10'
+      DesiredCapacity: '2'
+      Tags:
+        - Key: Name
+          Value: !Sub '${StackNamePrefix}-worker'
+          PropagateAtLaunch: true
+
 Outputs:
   ManagerPublicIp:
     Value: !GetAtt Manager.PublicIp
-  WorkerPublicIp:
-    Value: !GetAtt Worker.PublicIp
