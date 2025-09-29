@@ -61,3 +61,4 @@ aws cloudformation describe-stacks \
   --query "Stacks[0].Outputs[?OutputKey=='GitHubEcrPushRoleArn'].OutputValue" \
   --output text
 ```
+  
