@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using System.Net.Sockets;
 
 namespace SwarmMvc.Controllers;
 
@@ -22,14 +23,36 @@ public class HomeController : Controller
     {
         try
         {
-            // Try to get EC2 instance metadata
-            var response = await _httpClient.GetStringAsync("http://169.254.169.254/latest/meta-data/instance-id");
-            return $"Instance ID: {response}";
+            // Try to get EC2 instance metadata with timeout
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(2));
+            var instanceId = await _httpClient.GetStringAsync("http://169.254.169.254/latest/meta-data/instance-id", cts.Token);
+
+            // Get container ID (first 12 chars of hostname in Docker)
+            var hostname = Environment.MachineName;
+            var containerInfo = hostname.Length > 12 ? hostname.Substring(0, 12) : hostname;
+
+            return $"Instance: {instanceId} | Container: {containerInfo} | IP: {GetLocalIP()}";
         }
         catch
         {
             // Fallback if not running on EC2 or metadata service unavailable
-            return $"Hostname: {Environment.MachineName}";
+            var hostname = Environment.MachineName;
+            var containerInfo = hostname.Length > 12 ? hostname.Substring(0, 12) : hostname;
+            return $"Host: {containerInfo} | IP: {GetLocalIP()} | PID: {Environment.ProcessId}";
+        }
+    }
+
+    private string GetLocalIP()
+    {
+        try
+        {
+            var host = System.Net.Dns.GetHostEntry(System.Net.Dns.GetHostName());
+            var ip = host.AddressList.FirstOrDefault(x => x.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork);
+            return ip?.ToString() ?? "Unknown";
+        }
+        catch
+        {
+            return "Unknown";
         }
     }
 }
