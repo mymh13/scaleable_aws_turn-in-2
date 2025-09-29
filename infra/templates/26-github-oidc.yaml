@@ -5,7 +5,7 @@ Parameters:
   StackNamePrefix: { Type: String }
   RepositoryName:  { Type: String, Default: swarm-dotnet-app } # ECR repo
   GitHubOrg:       { Type: String, Default: mymh13 }
-  GitHubRepo:      { Type: String, Default: swarm-dotnet-test }
+  GitHubRepo:      { Type: String, Default: scaleable_aws_turn-in-2 }
   GitHubRef:       { Type: String, Default: refs/heads/main }
     # allow main branch (adjust if needed)
   OidcThumbprint:  { Type: String,  Default: 6938fd4d98bab03faadb97b34396831e3780aea1 }

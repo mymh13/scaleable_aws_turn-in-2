@@ -13,6 +13,7 @@
 *.user
 *.userosscachehttps://eu-west-1.console.aws.amazon.com/dynamodbv2/home#table?name=User&tab=permissions
 *.sln.docstates
+skalbara_moln_2_clo24_nikhal78.docx
 
 # Nested Stacks and CloudFormation-specific files
 /infra/parameters/dev.json

@@ -41,7 +41,7 @@ Parameters:
     Default: mymh13
   GitHubRepo:
     Type: String
-    Default: swarm-dotnet-test
+    Default: scaleable_aws_turn-in-2
   GitHubRef:
     Type: String
     Default: refs/heads/main
