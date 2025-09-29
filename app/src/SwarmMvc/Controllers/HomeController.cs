@@ -1,5 +1,4 @@
 using Microsoft.AspNetCore.Mvc;
-using System.Net.Sockets;
 
 namespace SwarmMvc.Controllers;
 
@@ -31,28 +30,14 @@ public class HomeController : Controller
             var hostname = Environment.MachineName;
             var containerInfo = hostname.Length > 12 ? hostname.Substring(0, 12) : hostname;
 
-            return $"Instance: {instanceId} | Container: {containerInfo} | IP: {GetLocalIP()}";
+            return $"Instance: {instanceId} | Container: {containerInfo}";
         }
         catch
         {
             // Fallback if not running on EC2 or metadata service unavailable
             var hostname = Environment.MachineName;
             var containerInfo = hostname.Length > 12 ? hostname.Substring(0, 12) : hostname;
-            return $"Host: {containerInfo} | IP: {GetLocalIP()} | PID: {Environment.ProcessId}";
-        }
-    }
-
-    private string GetLocalIP()
-    {
-        try
-        {
-            var host = System.Net.Dns.GetHostEntry(System.Net.Dns.GetHostName());
-            var ip = host.AddressList.FirstOrDefault(x => x.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork);
-            return ip?.ToString() ?? "Unknown";
-        }
-        catch
-        {
-            return "Unknown";
+            return $"Container: {containerInfo}";
         }
     }
 }
