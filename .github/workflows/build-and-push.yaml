@@ -61,7 +61,6 @@ jobs:
           done
           echo "ERROR: SSM agent not online on manager" && exit 1
 
-
       - name: Remove old Swarm app service (if exists)
         run: |
           aws ssm send-command \
@@ -78,8 +77,8 @@ jobs:
             --region "${{ env.AWS_REGION }}" \
             --instance-ids "${{ steps.find-manager.outputs.instance_id }}" \
             --document-name "AWS-RunShellScript" \
-            --comment "CI: Create Swarm app service" \
-            --parameters "commands=[\"aws ecr get-login-password --region ${{ env.AWS_REGION }} | docker login --username AWS --password-stdin ${{ env.ECR_REGISTRY }} && docker service create --name myappname_web --replicas 1 --publish 80:80 --with-registry-auth ${FULL_IMAGE}\"]"
+            --comment "CI: Remove old image and create Swarm app service" \
+            --parameters "commands=[\"docker image rm ${FULL_IMAGE} || true && aws ecr get-login-password --region ${{ env.AWS_REGION }} | docker login --username AWS --password-stdin ${{ env.ECR_REGISTRY }} && docker service create --name myappname_web --replicas 1 --publish 80:80 --with-registry-auth ${FULL_IMAGE}\"]"
 
 
       - name: Remove old Swarm visualizer service (if exists)
