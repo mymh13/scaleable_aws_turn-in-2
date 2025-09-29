@@ -59,51 +59,56 @@ Resources:
           aws ssm put-parameter --name /swarm/worker-token --type String --overwrite --value "$JOIN_TOKEN" --region ${AWS::Region}
 
 
-  WorkerLaunchConfig:
-    Type: AWS::AutoScaling::LaunchConfiguration
+  WorkerLaunchTemplate:
+    Type: AWS::EC2::LaunchTemplate
     Properties:
-      ImageId: !Ref AmiId
-      InstanceType: !Ref InstanceType
-      KeyName: !Ref KeyPairName
-      SecurityGroups: [ !Ref SecurityGroupId ]
-      IamInstanceProfile: !Ref InstanceProfileName
-      UserData:
-        Fn::Base64: !Sub |
-          #!/bin/bash
-          dnf update -y
-          dnf install -y docker
-          systemctl enable --now docker
-          usermod -aG docker ec2-user
-          # echo "export AWS_REGION=${AWS::Region}; export AWS_DEFAULT_REGION=${AWS::Region}" | tee -a /etc/profile.d/awsregion.sh
+      LaunchTemplateName: !Sub '${StackNamePrefix}-worker-lt'
+      LaunchTemplateData:
+        ImageId: !Ref AmiId
+        InstanceType: !Ref InstanceType
+        KeyName: !Ref KeyPairName
+        SecurityGroupIds: [ !Ref SecurityGroupId ]
+        IamInstanceProfile:
+          Name: !Ref InstanceProfileName
+        UserData:
+          Fn::Base64: !Sub |
+            #!/bin/bash
+            dnf update -y
+            dnf install -y docker
+            systemctl enable --now docker
+            usermod -aG docker ec2-user
+            # echo "export AWS_REGION=${AWS::Region}; export AWS_DEFAULT_REGION=${AWS::Region}" | tee -a /etc/profile.d/awsregion.sh
 
-          # Wait for manager IP and join token to be available in SSM
-          for i in {1..30}; do
-            MANAGER_IP=$(aws ssm get-parameter --name /swarm/manager-ip --region ${AWS::Region} --query 'Parameter.Value' --output text 2>/dev/null)
-            JOIN_TOKEN=$(aws ssm get-parameter --name /swarm/worker-token --region ${AWS::Region} --query 'Parameter.Value' --output text 2>/dev/null)
+            # Wait for manager IP and join token to be available in SSM
+            for i in {1..30}; do
+              MANAGER_IP=$(aws ssm get-parameter --name /swarm/manager-ip --region ${AWS::Region} --query 'Parameter.Value' --output text 2>/dev/null)
+              JOIN_TOKEN=$(aws ssm get-parameter --name /swarm/worker-token --region ${AWS::Region} --query 'Parameter.Value' --output text 2>/dev/null)
+              if [[ -n "$MANAGER_IP" && -n "$JOIN_TOKEN" ]]; then
+                break
+              fi
+              sleep 10
+            done
+
+            # Use IMDSv2 to get this worker's private IP (optional, for logging/debugging)
+            TOKEN=$(curl -X PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 21600")
+            WORKER_IP=$(curl -H "X-aws-ec2-metadata-token: $TOKEN" -s http://169.254.169.254/latest/meta-data/local-ipv4)
+            echo "Worker private IP: $WORKER_IP"
+
+            # Join the swarm
             if [[ -n "$MANAGER_IP" && -n "$JOIN_TOKEN" ]]; then
-              break
+              docker swarm join --token "$JOIN_TOKEN" "$MANAGER_IP":2377
+            else
+              echo "ERROR: Manager IP or join token not found after waiting."
+              exit 1
             fi
-            sleep 10
-          done
-
-          # Use IMDSv2 to get this worker's private IP (optional, for logging/debugging)
-          TOKEN=$(curl -X PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 21600")
-          WORKER_IP=$(curl -H "X-aws-ec2-metadata-token: $TOKEN" -s http://169.254.169.254/latest/meta-data/local-ipv4)
-          echo "Worker private IP: $WORKER_IP"
-
-          # Join the swarm
-          if [[ -n "$MANAGER_IP" && -n "$JOIN_TOKEN" ]]; then
-            docker swarm join --token "$JOIN_TOKEN" "$MANAGER_IP":2377
-          else
-            echo "ERROR: Manager IP or join token not found after waiting."
-            exit 1
-          fi
 
   WorkerAutoScalingGroup:
     Type: AWS::AutoScaling::AutoScalingGroup
     Properties:
       VPCZoneIdentifier: [ !Ref PublicSubnetId ]
-      LaunchConfigurationName: !Ref WorkerLaunchConfig
+      LaunchTemplate:
+        LaunchTemplateId: !Ref WorkerLaunchTemplate
+        Version: !GetAtt WorkerLaunchTemplate.LatestVersionNumber
       MinSize: '2'
       MaxSize: '10'
       DesiredCapacity: '2'
