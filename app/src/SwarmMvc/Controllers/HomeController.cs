@@ -26,18 +26,14 @@ public class HomeController : Controller
             using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(2));
             var instanceId = await _httpClient.GetStringAsync("http://169.254.169.254/latest/meta-data/instance-id", cts.Token);
 
-            // Get container ID (first 12 chars of hostname in Docker)
-            var hostname = Environment.MachineName;
-            var containerInfo = hostname.Length > 12 ? hostname.Substring(0, 12) : hostname;
-
-            return $"Instance: {instanceId} | Container: {containerInfo}";
+            // On AWS, use instance ID as primary identifier
+            return instanceId;
         }
         catch
         {
-            // Fallback if not running on EC2 or metadata service unavailable
+            // Fallback if not running on EC2 - use full container hostname
             var hostname = Environment.MachineName;
-            var containerInfo = hostname.Length > 12 ? hostname.Substring(0, 12) : hostname;
-            return $"Container: {containerInfo}";
+            return hostname;
         }
     }
 }
