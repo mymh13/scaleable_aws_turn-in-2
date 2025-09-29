@@ -51,10 +51,12 @@ Resources:
           systemctl enable --now docker
           usermod -aG docker ec2-user
           docker swarm init
-          # Publish manager's private IP to SSM Parameter Store using IMDSv2
+          # Publish manager's private IP and worker join token to SSM Parameter Store using IMDSv2
           TOKEN=$(curl -X PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 21600")
           MANAGER_IP=$(curl -H "X-aws-ec2-metadata-token: $TOKEN" -s http://169.254.169.254/latest/meta-data/local-ipv4)
           aws ssm put-parameter --name /swarm/manager-ip --type String --overwrite --value "$MANAGER_IP" --region ${AWS::Region}
+          JOIN_TOKEN=$(docker swarm join-token worker -q)
+          aws ssm put-parameter --name /swarm/worker-token --type String --overwrite --value "$JOIN_TOKEN" --region ${AWS::Region}
 
   Worker:
     Type: AWS::EC2::Instance
