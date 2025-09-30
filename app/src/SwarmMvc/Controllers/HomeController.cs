@@ -30,17 +30,28 @@ public class HomeController : Controller
     [HttpPost]
     public async Task<IActionResult> RecordTimestamp()
     {
-        var instanceInfo = await GetInstanceInfo();
-
-        var record = new TimestampRecord
+        try
         {
-            Timestamp = DateTime.UtcNow,
-            ContainerInfo = instanceInfo
-        };
+            var instanceInfo = await GetInstanceInfo();
 
-        await _dynamoContext.SaveAsync(record);
+            var record = new TimestampRecord
+            {
+                Timestamp = DateTime.UtcNow,
+                ContainerInfo = instanceInfo
+            };
 
-        return RedirectToAction("Index");
+            await _dynamoContext.SaveAsync(record);
+
+            return RedirectToAction("Index");
+        }
+        catch (Exception ex)
+        {
+            // Add error to ViewBag for debugging
+            ViewBag.Error = $"Error recording timestamp: {ex.Message}";
+            ViewBag.InstanceInfo = await GetInstanceInfo();
+            ViewBag.Timestamps = await GetRecentTimestamps();
+            return View("Index");
+        }
     }
 
     private async Task<string> GetInstanceInfo()
