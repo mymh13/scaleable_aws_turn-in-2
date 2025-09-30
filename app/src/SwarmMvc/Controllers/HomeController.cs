@@ -1,21 +1,46 @@
 using Microsoft.AspNetCore.Mvc;
+using Amazon.DynamoDBv2.DataModel;
+using SwarmMvc.Models;
 
 namespace SwarmMvc.Controllers;
 
 public class HomeController : Controller
 {
     private readonly HttpClient _httpClient;
+    private readonly IDynamoDBContext _dynamoContext;
 
-    public HomeController(HttpClient httpClient)
+    public HomeController(HttpClient httpClient, IDynamoDBContext dynamoContext)
     {
         _httpClient = httpClient;
+        _dynamoContext = dynamoContext;
     }
 
     public async Task<IActionResult> Index()
     {
         var instanceInfo = await GetInstanceInfo();
         ViewBag.InstanceInfo = instanceInfo;
+
+        // Get recent timestamps from DynamoDB
+        var timestamps = await GetRecentTimestamps();
+        ViewBag.Timestamps = timestamps;
+
         return View();
+    }
+
+    [HttpPost]
+    public async Task<IActionResult> RecordTimestamp()
+    {
+        var instanceInfo = await GetInstanceInfo();
+
+        var record = new TimestampRecord
+        {
+            Timestamp = DateTime.UtcNow,
+            ContainerInfo = instanceInfo
+        };
+
+        await _dynamoContext.SaveAsync(record);
+
+        return RedirectToAction("Index");
     }
 
     private async Task<string> GetInstanceInfo()
@@ -36,6 +61,20 @@ public class HomeController : Controller
             // Fallback if not running on EC2 - use full container hostname
             var hostname = Environment.MachineName;
             return $"Container: {hostname}";
+        }
+    }
+
+    private async Task<List<TimestampRecord>> GetRecentTimestamps()
+    {
+        try
+        {
+            var search = _dynamoContext.ScanAsync<TimestampRecord>(null);
+            var results = await search.GetRemainingAsync();
+            return results.OrderByDescending(x => x.Timestamp).Take(5).ToList();
+        }
+        catch
+        {
+            return new List<TimestampRecord>();
         }
     }
 }

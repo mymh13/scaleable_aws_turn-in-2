@@ -1,6 +1,47 @@
+@using SwarmMvc.Models
+
 <h1>Hello from SwarmMvc</h1>
 <p>Prepare to be assimilated.</p>
 
 <div style="background-color: #f0f0f0; padding: 10px; margin: 20px 0; border-radius: 5px;">
     <strong>Running on Docker Container ID:</strong> @ViewBag.InstanceInfo
+</div>
+
+<div style="margin: 20px 0;">
+    <form method="post" asp-action="RecordTimestamp">
+        <button type="submit"
+            style="background-color: #007bff; color: white; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer;">
+            📝 Record Timestamp
+        </button>
+    </form>
+</div>
+
+<div style="background-color: #f8f9fa; padding: 15px; margin: 20px 0; border-radius: 5px;">
+    <h3>Recent Timestamps:</h3>
+    @if (ViewBag.Timestamps != null && ((List<TimestampRecord>)ViewBag.Timestamps).Count > 0)
+    {
+        <table style="width: 100%; border-collapse: collapse;">
+            <thead>
+                <tr style="border-bottom: 2px solid #ddd;">
+                    <th style="text-align: left; padding: 8px;">Time</th>
+                    <th style="text-align: left; padding: 8px;">Container</th>
+                    <th style="text-align: left; padding: 8px;">Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var timestamp in (List<TimestampRecord>)ViewBag.Timestamps)
+                {
+                    <tr style="border-bottom: 1px solid #eee;">
+                        <td style="padding: 8px;">@timestamp.Timestamp.ToString("yyyy-MM-dd HH:mm:ss") UTC</td>
+                        <td style="padding: 8px;">@timestamp.ContainerInfo</td>
+                        <td style="padding: 8px;">@timestamp.Status</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+    else
+    {
+        <p><em>No timestamps recorded yet. Click the button above to record your first timestamp!</em></p>
+    }
 </div>
