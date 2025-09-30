@@ -58,46 +58,77 @@ Resources:
           from datetime import datetime
           
           def lambda_handler(event, context):
-              print(f"Lambda function executed! Event: {json.dumps(event)}")
+              print(f"Lambda triggered! Event: {json.dumps(event)}")
               
-              # Test DynamoDB connection
-              try:
+              # Check if this is a DynamoDB stream event or manual test
+              if 'Records' in event:
+                  # Handle DynamoDB stream events
                   dynamodb = boto3.resource('dynamodb')
                   table_name = os.environ['TABLE_NAME']
                   table = dynamodb.Table(table_name)
                   
-                  # Test: scan table to see recent timestamps
-                  response = table.scan(Limit=3)
-                  items = response.get('Items', [])
-                  print(f"Found {len(items)} items in DynamoDB table")
+                  for record in event['Records']:
+                      if record['eventName'] == 'INSERT' and record.get('dynamodb', {}).get('Keys', {}).get('pk', {}).get('S') == 'TIMESTAMP':
+                          # Process new timestamp records
+                          pk = record['dynamodb']['Keys']['pk']['S']
+                          sk = record['dynamodb']['Keys']['sk']['S']
+                          
+                          print(f"Processing new timestamp: {pk}/{sk}")
+                          
+                          # Update the record with Lambda acknowledgment
+                          try:
+                              table.update_item(
+                                  Key={'pk': pk, 'sk': sk},
+                                  UpdateExpression='SET #status = :status, ProcessedAt = :timestamp',
+                                  ExpressionAttributeNames={'#status': 'Status'},
+                                  ExpressionAttributeValues={
+                                      ':status': 'Acknowledged by Lambda',
+                                      ':timestamp': datetime.utcnow().isoformat()
+                                  }
+                              )
+                              print(f"Successfully updated record {pk}/{sk}")
+                          except Exception as e:
+                              print(f"Error updating record {pk}/{sk}: {str(e)}")
                   
-                  # Create a simple test record
-                  test_record = {
-                      'pk': 'LAMBDA_TEST',
-                      'sk': f'test-{datetime.utcnow().isoformat()}',
-                      'Timestamp': datetime.utcnow().isoformat(),
-                      'ContainerInfo': 'Lambda Test Function',
-                      'Status': 'Lambda Test Successful'
-                  }
-                  
-                  table.put_item(Item=test_record)
-                  print(f"Successfully created test record: {test_record['sk']}")
-                  
-                  return {
-                      'statusCode': 200, 
-                      'body': json.dumps({
-                          'message': 'Lambda DynamoDB test successful!',
-                          'items_found': len(items),
-                          'test_record_created': test_record['sk']
-                      })
-                  }
-                  
-              except Exception as e:
-                  print(f"Error: {str(e)}")
-                  return {
-                      'statusCode': 500,
-                      'body': json.dumps(f'Error: {str(e)}')
-                  }
+                  return {'statusCode': 200, 'body': json.dumps('Successfully processed DynamoDB stream events')}
+              
+              else:
+                  # Handle manual test invocations (keep existing test code)
+                  try:
+                      dynamodb = boto3.resource('dynamodb')
+                      table_name = os.environ['TABLE_NAME']
+                      table = dynamodb.Table(table_name)
+                      
+                      response = table.scan(Limit=3)
+                      items = response.get('Items', [])
+                      print(f"Found {len(items)} items in DynamoDB table")
+                      
+                      test_record = {
+                          'pk': 'LAMBDA_TEST',
+                          'sk': f'test-{datetime.utcnow().isoformat()}',
+                          'Timestamp': datetime.utcnow().isoformat(),
+                          'ContainerInfo': 'Lambda Test Function',
+                          'Status': 'Lambda Test Successful'
+                      }
+                      
+                      table.put_item(Item=test_record)
+                      print(f"Successfully created test record: {test_record['sk']}")
+                      
+                      return {
+                          'statusCode': 200, 
+                          'body': json.dumps({
+                              'message': 'Lambda DynamoDB test successful!',
+                              'items_found': len(items),
+                              'test_record_created': test_record['sk']
+                          })
+                      }
+                      
+                  except Exception as e:
+                      print(f"Error: {str(e)}")
+                      return {
+                          'statusCode': 500,
+                          'body': json.dumps(f'Error: {str(e)}')
+                      }
 
 Outputs:
   LambdaFunctionArn:
