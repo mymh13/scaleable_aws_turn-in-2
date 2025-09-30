@@ -79,8 +79,9 @@ public class HomeController : Controller
     {
         try
         {
-            var search = _dynamoContext.ScanAsync<TimestampRecord>(null);
-            var results = await search.GetRemainingAsync();
+            // Query by partition key "TIMESTAMP" to get all timestamp records
+            var query = _dynamoContext.QueryAsync<TimestampRecord>("TIMESTAMP");
+            var results = await query.GetRemainingAsync();
             return results.OrderByDescending(x => x.Timestamp).Take(5).ToList();
         }
         catch

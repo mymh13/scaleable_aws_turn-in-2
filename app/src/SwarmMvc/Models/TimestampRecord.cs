@@ -5,8 +5,11 @@ namespace SwarmMvc.Models;
 [DynamoDBTable("swarmcf-Submissions")]
 public class TimestampRecord
 {
-    [DynamoDBHashKey]
-    public string Id { get; set; } = Guid.NewGuid().ToString();
+    [DynamoDBHashKey("pk")]
+    public string PartitionKey { get; set; } = "TIMESTAMP";
+
+    [DynamoDBRangeKey("sk")]
+    public string SortKey { get; set; } = Guid.NewGuid().ToString();
 
     [DynamoDBProperty]
     public DateTime Timestamp { get; set; }
@@ -16,4 +19,8 @@ public class TimestampRecord
 
     [DynamoDBProperty]
     public string Status { get; set; } = "Recorded";
+
+    // Convenience property for display
+    [DynamoDBIgnore]
+    public string Id => SortKey;
 }
