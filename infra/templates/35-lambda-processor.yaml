@@ -39,13 +39,57 @@ Resources:
       Runtime: python3.9
       Handler: index.lambda_handler
       Role: !GetAtt TimestampProcessorRole.Arn
+      Environment:
+        Variables:
+          TABLE_NAME: !Ref TableName
       Code:
         ZipFile: |
           import json
+          import boto3
+          import os
+          from datetime import datetime
           
           def lambda_handler(event, context):
               print(f"Lambda function executed! Event: {json.dumps(event)}")
-              return {'statusCode': 200, 'body': json.dumps('Hello from Lambda!')}
+              
+              # Test DynamoDB connection
+              try:
+                  dynamodb = boto3.resource('dynamodb')
+                  table_name = os.environ['TABLE_NAME']
+                  table = dynamodb.Table(table_name)
+                  
+                  # Test: scan table to see recent timestamps
+                  response = table.scan(Limit=3)
+                  items = response.get('Items', [])
+                  print(f"Found {len(items)} items in DynamoDB table")
+                  
+                  # Create a simple test record
+                  test_record = {
+                      'pk': 'LAMBDA_TEST',
+                      'sk': f'test-{datetime.utcnow().isoformat()}',
+                      'Timestamp': datetime.utcnow().isoformat(),
+                      'ContainerInfo': 'Lambda Test Function',
+                      'Status': 'Lambda Test Successful'
+                  }
+                  
+                  table.put_item(Item=test_record)
+                  print(f"Successfully created test record: {test_record['sk']}")
+                  
+                  return {
+                      'statusCode': 200, 
+                      'body': json.dumps({
+                          'message': 'Lambda DynamoDB test successful!',
+                          'items_found': len(items),
+                          'test_record_created': test_record['sk']
+                      })
+                  }
+                  
+              except Exception as e:
+                  print(f"Error: {str(e)}")
+                  return {
+                      'statusCode': 500,
+                      'body': json.dumps(f'Error: {str(e)}')
+                  }
 
 Outputs:
   LambdaFunctionArn:
