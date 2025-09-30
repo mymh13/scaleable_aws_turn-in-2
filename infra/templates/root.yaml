@@ -116,6 +116,14 @@ Resources:
         GitHubRef:       !Ref GitHubRef
         OidcThumbprint:  !Ref OidcThumbprint
 
+  LambdaProcessorStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Sub 'https://s3.${AWS::Region}.amazonaws.com/${TemplateBucket}/${TemplatePrefix}35-lambda-processor.yaml'
+      Parameters:
+        StackNamePrefix: !Ref StackNamePrefix
+        TableName: !Ref TableName
+
 Outputs:
   ManagerPublicIp:
     Value: !GetAtt SwarmEc2Stack.Outputs.ManagerPublicIp
