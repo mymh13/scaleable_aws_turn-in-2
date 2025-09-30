@@ -6,6 +6,8 @@ Project repo: https://github.com/mymh13/scaleable_aws_turn-in-2
 This project is building on this repo: https://github.com/mymh13/swarm-dotnet-test
 It has been heavily modified and expanded upon from that foundation.
 
+Complete documentation with overview of the project is in the file named "skalbara_moln_2_clo24_nikhal78.pdf".
+
 ---
 
 ## Project Structure
