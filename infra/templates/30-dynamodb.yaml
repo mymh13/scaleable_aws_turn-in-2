@@ -24,6 +24,8 @@ Resources:
           KeyType: HASH
         - AttributeName: sk
           KeyType: RANGE
+      StreamSpecification:
+        StreamViewType: NEW_AND_OLD_IMAGES
       Tags:
         - Key: Name
           Value: !Sub '${StackNamePrefix}-submissions'

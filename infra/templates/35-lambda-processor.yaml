@@ -1,0 +1,83 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Lambda function triggered by DynamoDB for timestamp acknowledgments
+
+Parameters:
+  StackNamePrefix:
+    Type: String
+  TableName:
+    Type: String
+
+Resources:
+  TimestampProcessorRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub '${StackNamePrefix}-lambda-timestamp-processor'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: DynamoDBAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - dynamodb:UpdateItem
+                  - dynamodb:GetItem
+                Resource: !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${TableName}'
+
+  TimestampProcessor:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub '${StackNamePrefix}-timestamp-processor'
+      Runtime: python3.9
+      Handler: index.lambda_handler
+      Role: !GetAtt TimestampProcessorRole.Arn
+      Code:
+        ZipFile: |
+          import json
+          import boto3
+          from datetime import datetime
+          
+          def lambda_handler(event, context):
+              dynamodb = boto3.resource('dynamodb')
+              table = dynamodb.Table('swarmcf-Submissions')
+              
+              for record in event['Records']:
+                  if record['eventName'] == 'INSERT':
+                      # Get the new item details
+                      pk = record['dynamodb']['Keys']['pk']['S']
+                      sk = record['dynamodb']['Keys']['sk']['S']
+                      
+                      # Update the record with acknowledgment
+                      response = table.update_item(
+                          Key={'pk': pk, 'sk': sk},
+                          UpdateExpression='SET #status = :status, ProcessedAt = :timestamp',
+                          ExpressionAttributeNames={'#status': 'Status'},
+                          ExpressionAttributeValues={
+                              ':status': 'Acknowledged by Lambda',
+                              ':timestamp': datetime.utcnow().isoformat()
+                          }
+                      )
+                      
+                      print(f"Processed timestamp record: {pk}/{sk}")
+              
+              return {'statusCode': 200, 'body': json.dumps('Successfully processed records')}
+
+  DynamoDBStreamEventSourceMapping:
+    Type: AWS::Lambda::EventSourceMapping
+    Properties:
+      EventSourceArn: !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${TableName}/stream/NEW_AND_OLD_IMAGES'
+      FunctionName: !GetAtt TimestampProcessor.Arn
+      StartingPosition: LATEST
+
+Outputs:
+  LambdaFunctionArn:
+    Value: !GetAtt TimestampProcessor.Arn
+    Description: ARN of the timestamp processor Lambda function
