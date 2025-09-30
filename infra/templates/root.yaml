@@ -118,11 +118,13 @@ Resources:
 
   LambdaProcessorStack:
     Type: AWS::CloudFormation::Stack
+    DependsOn: DynamoDbStack
     Properties:
       TemplateURL: !Sub 'https://s3.${AWS::Region}.amazonaws.com/${TemplateBucket}/${TemplatePrefix}35-lambda-processor.yaml'
       Parameters:
         StackNamePrefix: !Ref StackNamePrefix
         TableName: !Ref TableName
+        TableStreamArn: !GetAtt DynamoDbStack.Outputs.TableStreamArn
 
 Outputs:
   ManagerPublicIp:

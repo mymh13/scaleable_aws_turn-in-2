@@ -33,3 +33,6 @@ Resources:
 Outputs:
   TableName:
     Value: !Ref SubmissionsTable
+  TableStreamArn:
+    Description: ARN of the DynamoDB table stream
+    Value: !GetAtt SubmissionsTable.StreamArn

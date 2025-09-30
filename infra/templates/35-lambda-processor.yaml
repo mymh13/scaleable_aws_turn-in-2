@@ -6,6 +6,9 @@ Parameters:
     Type: String
   TableName:
     Type: String
+  TableStreamArn:
+    Type: String
+    Description: ARN of the DynamoDB table stream
 
 Resources:
   TimestampProcessorRole:
@@ -129,6 +132,14 @@ Resources:
                           'statusCode': 500,
                           'body': json.dumps(f'Error: {str(e)}')
                       }
+
+  TimestampEventSourceMapping:
+    Type: AWS::Lambda::EventSourceMapping
+    Properties:
+      EventSourceArn: !Ref TableStreamArn
+      FunctionName: !Ref TimestampProcessor
+      StartingPosition: LATEST
+      BatchSize: 10
 
 Outputs:
   LambdaFunctionArn:
