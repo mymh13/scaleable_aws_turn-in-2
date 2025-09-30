@@ -30,7 +30,15 @@ Resources:
                 Action:
                   - dynamodb:UpdateItem
                   - dynamodb:GetItem
-                Resource: !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${TableName}'
+                  - dynamodb:PutItem
+                  - dynamodb:Scan
+                  - dynamodb:DescribeStream
+                  - dynamodb:GetRecords
+                  - dynamodb:GetShardIterator
+                  - dynamodb:ListStreams
+                Resource: 
+                  - !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${TableName}'
+                  - !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${TableName}/stream/*'
 
   TimestampProcessor:
     Type: AWS::Lambda::Function

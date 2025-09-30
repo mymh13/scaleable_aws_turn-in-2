@@ -1,0 +1,1 @@
+{"statusCode": 200, "body": "{\"message\": \"Lambda DynamoDB test successful!\", \"items_found\": 3, \"test_record_created\": \"test-2025-09-30T01:18:21.280309\"}"}
